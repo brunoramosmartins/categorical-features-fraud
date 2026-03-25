@@ -1,0 +1,85 @@
+# =============================================================================
+# Configuration — Categorical Features Fraud
+# =============================================================================
+# All parameters centralised here for reproducibility.
+# Referenced by src/ modules and scripts/.
+
+dataset:
+  size: 100000
+  fraud_rate: 0.005  # 0.5%
+  seed: 42
+  test_size: 0.2
+  country_params:
+    # name: [expected_n, fraud_rate]
+    Brazil:        [40000, 0.004]
+    USA:           [30000, 0.006]
+    UK:            [8000,  0.005]
+    Germany:       [5000,  0.005]
+    India:         [4000,  0.007]
+    Mexico:        [3000,  0.004]
+    Japan:         [2500,  0.003]
+    Canada:        [2000,  0.005]
+    France:        [1500,  0.006]
+    Australia:     [1200,  0.004]
+    South_Korea:   [800,   0.008]
+    Nigeria:       [500,   0.015]
+    Colombia:      [300,   0.020]
+    Paraguay:      [50,    0.080]
+    Uruguay:       [5,     1.000]   # ~5 obs, 100% fraud — the narrative anchor
+  merchant_categories:
+    # category: [relative_weight, fraud_rate]
+    groceries:          [0.20, 0.002]
+    electronics:        [0.15, 0.010]
+    travel:             [0.10, 0.008]
+    restaurants:        [0.10, 0.003]
+    online_services:    [0.08, 0.012]
+    clothing:           [0.08, 0.004]
+    fuel:               [0.07, 0.003]
+    entertainment:      [0.06, 0.005]
+    health:             [0.05, 0.002]
+    home_improvement:   [0.04, 0.006]
+    gambling:           [0.04, 0.025]
+    cryptocurrency:     [0.03, 0.030]
+  device_os:
+    # os: [relative_weight, fraud_rate]
+    Android: [0.45, 0.005]
+    iOS:     [0.35, 0.004]
+    Windows: [0.15, 0.007]
+    Other:   [0.05, 0.010]
+  channel:
+    # channel: [relative_weight, fraud_rate]
+    online:   [0.60, 0.007]
+    in_store: [0.30, 0.002]
+    phone:    [0.10, 0.005]
+  numerical_features:
+    - transaction_amount
+    - account_age_days
+    - transaction_hour
+    - distance_from_home
+    - num_transactions_last_24h
+
+encoding:
+  smoothing:
+    alpha: 1.0   # Beta prior alpha (default)
+    beta: 1.0    # Beta prior beta (default)
+  fold_encoding:
+    n_folds: 5
+
+models:
+  xgboost:
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.1
+    scale_pos_weight: 200  # ~1/fraud_rate
+    eval_metric: aucpr
+    random_state: 42
+  logistic_regression:
+    max_iter: 1000
+    random_state: 42
+
+figures:
+  dpi: 300
+  style: seaborn-v0_8-whitegrid
+  figsize: [10, 6]
+  colormap: viridis
+  save_format: png
