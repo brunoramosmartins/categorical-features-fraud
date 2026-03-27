@@ -49,3 +49,5 @@ This closes the gap: “we computed correlations” → “here is what we do ab
 | §4 Bayesian smoothing | A3 |
 | §6 Correlation not redundancy | B1 |
 | §7 When to drop / keep | B2 |
+
+**Phase 2 (encoding & leakage):** see `docs/theory-summary-phase2.md` for §5 and §8 blocks.
