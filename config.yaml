@@ -9,6 +9,16 @@ dataset:
   fraud_rate: 0.005  # 0.5%
   seed: 42
   test_size: 0.2
+  # copula: correlated (z1,z2) drives country (via z1), merchant (via mix), and fraud
+  generation: copula
+  copula_rho: 0.92
+  merchant_score_z1: 0.72
+  merchant_score_z2: 0.28
+  fraud_intercept: -8.25
+  fraud_coef_z1: 1.9
+  fraud_coef_z2: 1.75
+  fraud_coef_interaction: 0.95
+  fraud_logit_noise: 0.34
   country_params:
     # name: [expected_n, fraud_rate]
     Brazil:        [40000, 0.004]
@@ -67,15 +77,22 @@ encoding:
 
 models:
   xgboost:
-    n_estimators: 200
-    max_depth: 6
-    learning_rate: 0.1
-    scale_pos_weight: 200  # ~1/fraud_rate
+    n_estimators: 300
+    max_depth: 5
+    learning_rate: 0.08
+    min_child_weight: 3
+    subsample: 0.85
+    colsample_bytree: 0.85
+    scale_pos_weight: 200  # order of magnitude for rare fraud; tune with prevalence
     eval_metric: aucpr
     random_state: 42
   logistic_regression:
     max_iter: 1000
     random_state: 42
+
+experiments:
+  # Total Beta prior strength (alpha+beta) for Experiment A smoothing curve
+  smoothing_prior_totals: [10, 100, 1000]
 
 figures:
   dpi: 300
