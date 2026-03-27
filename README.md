@@ -13,11 +13,13 @@ A category with 100% target rate and five observations is more likely evidence o
 - **Experiments:** Four reproducible experiments on a synthetic fraud dataset, each testing a specific theoretical claim.
 - **Article:** A complete, publication-ready article connecting theory to practice.
 
+The canonical article source lives in `article/` (Markdown). The **public HTML** is built and hosted from a **separate portfolio repository** (Markdown → HTML via that repo’s Python workflow), not from GitHub Pages on this project.
+
 ## How to reproduce
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/categorical-features-fraud.git
+git clone https://github.com/brunoramosmartins/categorical-features-fraud.git
 cd categorical-features-fraud
 
 # Create a virtual environment
