@@ -13,7 +13,15 @@ def _global_mean(y: pd.Series | np.ndarray) -> float:
 
 
 def one_hot_encode(series: pd.Series, feature_name: str) -> pd.DataFrame:
-    """One-hot columns `{feature_name}_{level}`."""
+    """Return dummy columns for each observed level (float 0/1).
+
+    Args:
+        series: Categorical column to expand.
+        feature_name: Prefix for column names ``{feature_name}_{level}``.
+
+    Returns:
+        DataFrame with one column per distinct level in ``series``.
+    """
     return pd.get_dummies(series.astype(str), prefix=feature_name, dtype=float)
 
 
@@ -25,7 +33,18 @@ def target_encode_naive(
     *,
     global_mean: float | None = None,
 ) -> pd.Series:
-    """MLE k/n on training rows; apply to X_apply; unseen → global_mean."""
+    """Naïve target encoding: MLE :math:`k/n` per level on the fit sample.
+
+    Args:
+        X_train: Categories used to compute level-wise rates.
+        y_train: Binary labels aligned with ``X_train``.
+        X_apply: Categories to encode (train, validation, or test).
+        feature_name: Base name for the output series.
+        global_mean: Imputation for unseen levels; defaults to mean of ``y_train``.
+
+    Returns:
+        Series named ``{feature_name}_target_naive`` with one float per row of ``X_apply``.
+    """
     if global_mean is None:
         global_mean = _global_mean(y_train)
     df = pd.DataFrame({"x": X_train, "y": y_train.astype(float)})
@@ -45,7 +64,21 @@ def smoothed_target_encode(
     *,
     global_mean: float | None = None,
 ) -> pd.Series:
-    """Beta–Binomial posterior mean (alpha+k)/(alpha+beta+n) fit on train only."""
+    """Smoothed target encoding: Beta–Binomial posterior mean per level.
+
+    Uses :math:`(k+\\alpha)/(n+\\alpha+\\beta)` with counts :math:`(k,n)` from
+    ``(X_train, y_train)`` only.
+
+    Args:
+        X_train, y_train: Fit sample for level statistics.
+        X_apply: Rows to encode.
+        feature_name: Base name for the output series.
+        alpha, beta: Beta prior hyperparameters (same for all levels).
+        global_mean: Fallback for unseen levels; defaults to mean of ``y_train``.
+
+    Returns:
+        Series named ``{feature_name}_target_smooth``.
+    """
     if global_mean is None:
         global_mean = _global_mean(y_train)
     df = pd.DataFrame({"x": X_train, "y": y_train.astype(float)})
@@ -64,7 +97,18 @@ def target_encode_leaky(
     y_test: pd.Series,
     feature_name: str,
 ) -> tuple[pd.Series, pd.Series]:
-    """Naïve TE using train+test labels together (deliberate leakage for Exp D)."""
+    """Target encoding fit using **concatenated** train and test labels (leakage).
+
+    Intended only for ``experiment_d`` to demonstrate optimistic training metrics
+    when test labels influence the mapping.
+
+    Args:
+        X_train, y_train, X_test, y_test: Parallel splits; all labels enter the mapping.
+        feature_name: Base name for both output series.
+
+    Returns:
+        ``(enc_train, enc_test)`` with identical column name suffix ``_target_leaky``.
+    """
     X_full = pd.concat([X_train, X_test], ignore_index=True)
     y_full = pd.concat([y_train, y_test], ignore_index=True)
     g = _global_mean(y_full)
@@ -86,7 +130,22 @@ def fold_target_oof(
     global_mean: float | None = None,
     random_state: int = 0,
 ) -> pd.Series:
-    """Out-of-fold target encoding on each training row (no in-fold label in statistic)."""
+    """Out-of-fold target encoding on training rows (no label leakage within fold).
+
+    Each held-out fold is encoded using statistics from the other folds only.
+    If ``alpha == beta == 0``, uses naïve MLE; otherwise smoothed encoding.
+
+    Args:
+        X_train, y_train: Full training set to partition with ``KFold``.
+        feature_name: Base name for the output series.
+        n_folds: Number of CV folds (must be >= 2).
+        alpha, beta: Smoothing hyperparameters (0,0 for naïve OOF).
+        global_mean: Fill for any remaining NaNs; defaults to mean of ``y_train``.
+        random_state: Passed to ``KFold(shuffle=True)``.
+
+    Returns:
+        Series aligned with ``X_train``, named ``{feature_name}_target_oof``.
+    """
     if global_mean is None:
         global_mean = _global_mean(y_train)
     X_train = X_train.reset_index(drop=True)
@@ -119,7 +178,21 @@ def fold_target_apply_test(
     beta: float = 0.0,
     global_mean: float | None = None,
 ) -> pd.Series:
-    """Encode test rows using full training statistics only (no test labels)."""
+    """Encode held-out rows using statistics from ``(X_train, y_train)`` only.
+
+    Pairs with :func:`fold_target_oof` for a proper train/test pipeline: OOF on
+    train, full-train mapping on test.
+
+    Args:
+        X_train, y_train: Training data defining level rates.
+        X_test: Test (or validation) categories.
+        feature_name: Base name for the output series.
+        alpha, beta: Same semantics as :func:`smoothed_target_encode`; ``(0,0)`` is naïve.
+        global_mean: Unseen-level fallback; defaults to mean of ``y_train``.
+
+    Returns:
+        Series for ``X_test`` with the same naming convention as naïve/smooth encoders.
+    """
     if global_mean is None:
         global_mean = _global_mean(y_train)
     if alpha == 0.0 and beta == 0.0:

@@ -7,52 +7,111 @@
 
 A category with 100% target rate and five observations is more likely evidence of insufficient data than of a robust predictive signal. A correlation of 0.95 between two features is more likely evidence of shared variation than of redundancy. Both illusions share the same root cause: treating a sample statistic as if it were a population parameter. This article formalises why, and provides a framework for encoding decisions that respects what the sample size permits.
 
+## Article (canonical source)
+
+The full write-up is in **[`article/features-that-lie.md`](article/features-that-lie.md)** (Abstract through References, experiments, decision tables). A **Portuguese (pt-BR) translation for review** is in [`article/features-that-lie.pt-BR.md`](article/features-that-lie.pt-BR.md). Supporting material:
+
+- [`article/notation.md`](article/notation.md) — symbol glossary  
+- [`article/references.bib`](article/references.bib) — BibTeX  
+- [`docs/thesis.md`](docs/thesis.md) — thesis, scope, reader persona  
+- [`docs/outline.md`](docs/outline.md) — section map  
+
+The **public HTML** is built and hosted from a **separate portfolio repository** (Markdown → HTML via that repo’s workflow), not from GitHub Pages on this project.
+
+## Architecture (code and docs)
+
+```mermaid
+flowchart LR
+  subgraph inputs
+    CY["config.yaml"]
+  end
+  subgraph core["src/"]
+    CU["config_utils"]
+    D["data.generate + load_and_split"]
+    E["encoding"]
+    M["models"]
+    P["plotting"]
+    S["stats_utils"]
+  end
+  subgraph scripts["scripts/"]
+    RA["run_all.py"]
+    EA["experiment_a … d"]
+  end
+  CY --> CU
+  CU --> D
+  CU --> E
+  CU --> M
+  CU --> P
+  D --> EA
+  E --> EA
+  M --> EA
+  P --> EA
+  RA --> EA
+  EA --> FIGS["figures/*.png"]
+```
+
+- **`config.yaml`** — seeds, dataset size, copula parameters, encoding \(\alpha,\beta\), XGBoost and figure DPI.  
+- **`src/data.py`** — synthetic fraud table (Gaussian copula path by default); stratified split with Uruguay forced into train for the low-support narrative.  
+- **`src/encoding.py`** — one-hot, naïve / smoothed / leaky / OOF target encodings.  
+- **`src/models.py`** — XGBoost with optional `scale_pos_weight` from class counts.  
+- **`src/plotting.py`** — style and `figures/` export.  
+- **`src/stats_utils.py`** — Agresti–Coull intervals for Experiment A.  
+- **`scripts/run_all.py`** — runs experiments A–D from repo root (sets working directory appropriately).
+
 ## What you will find here
 
-- **Theory:** MLE for category-level target rates, variance under low support, Bayesian smoothing (Beta-Binomial), and why correlation does not imply redundancy.
-- **Experiments:** Four reproducible experiments on a synthetic fraud dataset, each testing a specific theoretical claim.
-- **Article:** A complete, publication-ready article connecting theory to practice.
-
-The canonical article source lives in `article/` (Markdown). The **public HTML** is built and hosted from a **separate portfolio repository** (Markdown → HTML via that repo’s Python workflow), not from GitHub Pages on this project.
+- **Theory:** MLE for category-level target rates, variance under low support, Bayesian smoothing (Beta–Binomial), and why correlation does not imply redundancy for predicting \(Y\).  
+- **Experiments:** Four reproducible experiments on a synthetic fraud dataset, each tied to a figure and a claim in the article.  
+- **Phase 5 helpers:** Pre-publication checklist docs and `scripts/verify_publication_ready.py` (optional `run_all`).
 
 ## How to reproduce
 
 ```bash
-# Clone the repository
 git clone https://github.com/brunoramosmartins/categorical-features-fraud.git
 cd categorical-features-fraud
 
-# Create a virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\activate   # Windows
+source .venv/bin/activate   # Linux/macOS
+# .venv\Scripts\activate    # Windows
 
-# Install dependencies
 pip install -r requirements.txt
-
-# Run all experiments and generate figures
-python scripts/run_all.py
+python scripts/check_env.py          # optional: quick dependency check
+python scripts/run_all.py            # generates figures/ and uses data/ as needed
 ```
+
+Pre-publication mechanical checks (licences, article presence, figures; can run experiments):
+
+```bash
+python scripts/verify_publication_ready.py
+python scripts/verify_publication_ready.py --skip-experiments
+```
+
+## Development practices
+
+- **Branches and commits:** see [`CONTRIBUTING.md`](CONTRIBUTING.md).  
+- **Single source of truth:** article text in `article/`; experiment numbers summarised in [`docs/experiments-summary.md`](docs/experiments-summary.md).  
+- **Python:** 3.10+; typed helpers where it clarifies public APIs; module docstrings describe role; functions that cross module boundaries document args/returns.  
+- **Changelog:** notable changes in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Project structure
 
 ```
 categorical-features-fraud/
-├── article/          # Full article source, references, notation
-├── docs/             # Internal docs: thesis, outline, dataset design
-├── src/              # Source modules: data, encoding, models, plotting
-├── scripts/          # Experiment scripts + run_all.py
-├── notebooks/        # Exploratory notebooks (not final)
-├── figures/          # Generated figures (300dpi)
-├── data/             # Generated dataset (not tracked)
+├── article/          # Full article, references, notation
+├── docs/             # Thesis, outline, dataset design, experiment summary, Phase 5 checklists
+├── src/              # Data, encoding, models, plotting, stats
+├── scripts/          # experiment_a–d, run_all, check_env, verify_publication_ready
+├── notebooks/        # Exploratory (not final)
+├── figures/          # Generated figures (default 300 dpi)
+├── data/             # Generated cache (not tracked)
 ├── notes/            # Study notes per phase
-├── config.yaml       # All parameters (seeds, dataset, encoding, figures)
-├── requirements.txt  # Pinned Python dependencies
-├── CONTRIBUTING.md   # Branch, commit, and merge conventions
-└── CHANGELOG.md      # Version history
+├── config.yaml
+├── requirements.txt
+├── CONTRIBUTING.md
+└── CHANGELOG.md
 ```
 
 ## License
 
-- **Code** (`src/`, `scripts/`): [MIT License](LICENSE)
+- **Code** (`src/`, `scripts/`): [MIT License](LICENSE)  
 - **Article text** (`article/`): [CC BY 4.0](LICENSE-TEXT)

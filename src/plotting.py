@@ -1,4 +1,4 @@
-"""Figure style and save helpers."""
+"""Matplotlib/Seaborn style from config and PNG export under ``figures/``."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from src.config_utils import load_config, repo_root
 
 
 def apply_plot_style(cfg: dict | None = None) -> None:
+    """Apply Seaborn theme and ``figure.figsize`` from ``cfg['figures']``."""
     if cfg is None:
         cfg = load_config()
     fig = cfg.get("figures", {})
@@ -23,6 +24,7 @@ def apply_plot_style(cfg: dict | None = None) -> None:
 
 
 def figures_dir() -> Path:
+    """Directory where experiment scripts save PNGs (created on save if missing)."""
     return repo_root() / "figures"
 
 
