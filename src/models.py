@@ -1,4 +1,4 @@
-"""XGBoost training and metrics."""
+"""XGBoost classifier construction, training, and fraud metrics (AUC-PR, F1)."""
 
 from __future__ import annotations
 
@@ -17,6 +17,18 @@ def build_xgb_classifier(
     *,
     y_train: np.ndarray | pd.Series | None = None,
 ) -> XGBClassifier:
+    """Instantiate ``XGBClassifier`` from ``cfg['models']['xgboost']``.
+
+    If ``y_train`` is provided and contains at least one positive, sets
+    ``scale_pos_weight`` to ``neg/pos`` for class imbalance.
+
+    Args:
+        cfg: Project config; loads default YAML if ``None``.
+        y_train: Optional binary labels used only to set ``scale_pos_weight``.
+
+    Returns:
+        Unfitted ``XGBClassifier``.
+    """
     if cfg is None:
         cfg = load_config()
     p = dict(cfg["models"]["xgboost"])
@@ -36,7 +48,17 @@ def train_and_evaluate(
     y_test: pd.Series | np.ndarray,
     cfg: dict[str, Any] | None = None,
 ) -> dict[str, float]:
-    """Fit XGBoost; return train/test AUC-PR and F1 (threshold 0.5 on proba)."""
+    """Fit XGBoost on numeric matrices and return train/test scores.
+
+    Args:
+        X_train, X_test: Feature matrices (float32 internally).
+        y_train, y_test: Binary targets.
+        cfg: Model hyperparameters; loads default if ``None``.
+
+    Returns:
+        Dict with keys ``aucpr_train``, ``aucpr_test``, ``f1_train``, ``f1_test``
+        (F1 at probability threshold 0.5).
+    """
     if cfg is None:
         cfg = load_config()
     X_train = np.asarray(X_train, dtype=np.float32)

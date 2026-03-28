@@ -7,9 +7,18 @@ from scipy import stats
 
 
 def agresti_coull_interval(k: int, n: int, alpha: float = 0.05) -> tuple[float, float]:
-    """
-    Two-sided Agresti–Coull interval for Binomial proportion.
-    Uses adjusted p̃ = (k+2)/(n+4) and ñ = n+4 (add-two successes/failures).
+    """Two-sided Agresti–Coull interval for a Binomial proportion.
+
+    Uses adjusted :math:`\\tilde p = (k+2)/(n+4)` and :math:`\\tilde n = n+4`
+    (add-two successes and failures).
+
+    Args:
+        k: Observed successes.
+        n: Trials. If ``n <= 0``, returns ``(nan, nan)``.
+        alpha: Two-sided error rate (default 0.05 → nominal 95% interval).
+
+    Returns:
+        ``(lower, upper)`` clipped to ``[0, 1]``.
     """
     if n <= 0:
         return (float("nan"), float("nan"))

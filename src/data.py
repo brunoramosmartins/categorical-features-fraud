@@ -1,4 +1,10 @@
-"""Synthetic dataset generation and train/test split."""
+"""Synthetic fraud dataset generation and stratified train/test split.
+
+The default generator uses a Gaussian copula over latent variables to induce
+correlated ``country`` / ``merchant_category`` structure and a nonlinear fraud
+logit; see ``docs/dataset-design.md``. Uruguay is configured as a small
+high-fraud anchor for the article narrative.
+"""
 
 from __future__ import annotations
 
@@ -17,11 +23,19 @@ def load_and_split(
     config_path: str | None = None,
     keep_anchor_countries_in_train: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Generate dataset and return stratified (train, test) DataFrames.
+    """Generate dataset and return stratified ``(train, test)`` DataFrames.
 
     When ``keep_anchor_countries_in_train`` (default), rows with ``country ==
     \"Uruguay\"`` are always placed in training so low-support narrative
-    statistics (e.g. Experiment A) see all ~5 anchor rows in-train.
+    statistics (e.g. Experiment A) see all anchor rows in-train.
+
+    Args:
+        cfg: Pre-loaded config dict. If ``None``, loads from ``config_path`` or default YAML.
+        config_path: Optional path passed to :func:`load_config` when ``cfg`` is ``None``.
+        keep_anchor_countries_in_train: If true, assign all Uruguay rows to train before splitting the rest.
+
+    Returns:
+        Training and test frames with categoricals, ``fraud`` target, and numerical columns from config.
     """
     if cfg is None:
         cfg = load_config(config_path)
@@ -56,7 +70,14 @@ def load_and_split(
 
 
 def generate_dataset(cfg: dict[str, Any]) -> pd.DataFrame:
-    """Build synthetic fraud data: Gaussian copula + stratified categories (Phase 3)."""
+    """Build one synthetic fraud table (no split).
+
+    Args:
+        cfg: Must contain a ``dataset`` block (``size``, ``seed``, ``generation``, copula keys, etc.).
+
+    Returns:
+        DataFrame with ``country``, ``merchant_category``, ``device_os``, ``channel``, ``fraud``, and numeric features.
+    """
     ds = cfg["dataset"]
     mode = str(ds.get("generation", "copula")).lower()
     if mode == "copula":
