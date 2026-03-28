@@ -2,7 +2,7 @@
 
 ## Thesis
 
-Category-level statistics used in supervised fraud modelling—especially **target encodings** and **naïve** fraud rates \(\hat{p}_c = k_c/n_c\)—are **statistical estimators**, not fixed population truths. Their reliability is governed by **support** \(n_c\), the **scope** of the sample used to fit them (train vs test vs fold), and the **estimand** each encoding targets. Ignoring variance, smoothing, or leakage leads to two recurring illusions: (1) treating a **100%** rate on a handful of rows as decisive evidence, and (2) treating **high Pearson correlation** between two encoded features as sufficient reason to drop one without **target-aware** evidence.
+Category-level statistics used in supervised fraud modelling—especially **target encodings** and **naïve** fraud rates \(\hat{p}_c = k_c/n_c\)—are **statistical estimators**, not fixed population truths. Their reliability is governed by **support** \(n_c\), the **scope** of the sample used to fit them (train vs test vs fold), and the **estimand** each encoding targets. Ignoring variance, smoothing, or leakage leads to two recurring illusions: (1) treating a **high observed** rate on a **small** \(n_c\) as decisive evidence of a precise population rate, and (2) treating **high Pearson correlation** between two encoded features as sufficient reason to drop one without **target-aware** or **model-based** evidence.
 
 ## Scope
 

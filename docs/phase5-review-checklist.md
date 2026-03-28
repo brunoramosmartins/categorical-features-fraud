@@ -11,7 +11,7 @@ Use this document while executing **Phase 5** of the roadmap (`phase/5-review-po
 - [ ] Read the entire article **aloud**. Mark unclear or overly long sentences.
 - [ ] Every mathematical claim is **derived**, **cited**, or explicitly marked as a **heuristic**.
 - [ ] The **thesis** is clearly answered in the **conclusion**.
-- [ ] The **narrative thread** is coherent: two interview gaps → shared root cause → resolution.
+- [ ] The **narrative thread** is coherent: recurring practice gaps (extreme rates at low \(n_c\); correlation without decision rule) → shared root cause → checklists and experiments.
 - [ ] Thesis uses **softened** language (“more likely evidence of …”), not absolute claims.
 - [ ] Scan for **absolute** statements; replace with **conditional** ones where appropriate.
 - [ ] **Terminology** is consistent: e.g. “high-variance estimator”, “low-support regime”.
@@ -40,7 +40,7 @@ Use this document while executing **Phase 5** of the roadmap (`phase/5-review-po
 
 - [ ] Grammar and **style** pass (consistent dialect: en-GB vs en-US).
 - [ ] **Section transitions:** each section ends by motivating the next.
-- [ ] **Personal narrative** only in **introduction** and **conclusion** (not in technical core).
+- [ ] **Framing** stays professional: context/problem/risk in the introduction; avoid over-reliance on a single anecdote unless intentional.
 
 ---
 

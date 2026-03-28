@@ -5,7 +5,7 @@
 
 **Statistical Foundations of Categorical Feature Engineering for Fraud Detection — from Encoding to Inference**
 
-A category with 100% target rate and five observations is more likely evidence of insufficient data than of a robust predictive signal. A correlation of 0.95 between two features is more likely evidence of shared variation than of redundancy. Both illusions share the same root cause: treating a sample statistic as if it were a population parameter. This article formalises why, and provides a framework for encoding decisions that respects what the sample size permits.
+A **high observed** event rate on a **small** number of rows is often mistaken for a precise population fact—inviting bias and overfitting. High correlation between encoded features is often mistaken for safe redundancy. Both habits confuse **sample** estimates with **population** truths. This article treats category-level rates and encodings as **statistical estimators**, links theory to four reproducible experiments, and ends with explicit **decision checklists** for modelling and production.
 
 ## Article (canonical source)
 
