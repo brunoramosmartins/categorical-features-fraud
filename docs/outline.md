@@ -1,29 +1,24 @@
 # Article outline
 
-Mirror of `article/features-that-lie.md` section titles for navigation and drafting.
+Mirror of `article/features-that-lie.md` (third draft).
 
 | § | Title | Main idea |
 |---|--------|-----------|
-| — | Abstract + keywords | Estimator lens; bias/overfitting; synthetic caveat; checklists |
-| 1 | Introduction | Context / problem / risk / motivation; thesis; synthetic caveat |
-| 2 | Category-level statistic as estimator | Intuition then MLE; variance; plug-in failure; overfitting note |
-| 3 | Low-support deconstruction | Agresti–Coull; 100% and 70% examples; rule of thumb $n_c$ |
-| 4 | Bayesian smoothing | Beta–Binomial; libraries; pseudocode; production |
-| 5 | Encoding landscape | Table; when-to-use; trees; embeddings out of scope |
-| 6 | Correlation is not redundancy | Toy; **model** conclusion; pipeline caveat |
-| 7 | After correlations: checklist | Do / do not; five steps |
-| 8 | Target leakage | Minimal example; model impact; mechanism; detection |
-| 9 | Experiments | Repro; figure path note; summary table; A–D |
-| 10 | Decision framework | Flow + compass table |
-| 11 | Conclusion | Bullets; limitations; closing line |
-| — | Appendix A | Repo file map |
-| — | Appendix B | Production-oriented checklist |
-| — | References | Numbered citations + `article/references.bib` |
+| — | Abstract | EDA + high target ratio; correlated predictors (general); estimators, leakage |
+| 1 | Introduction | EDA practice; two gaps; takeaways; synthetic caveat |
+| 2 | Category-level estimator | Intuition + MLE/variance |
+| 3 | Low support | Agresti–Coull; sparse table (generic labels); rule of thumb |
+| 4 | Bayesian smoothing | Posterior; libraries; pseudocode |
+| 5 | Encodings | Table; when to use |
+| 6 | Highly correlated predictors | General toolkit + target-encoding special case + toy |
+| 7 | After high correlations | Numbered sequence (no legal-style headers) |
+| 8 | Leakage | Minimal example; model impact |
+| 9 | Experiments | `../figures/` paths; embedded figures |
+| 10 | Encoding framework | Flow + compass table |
+| 11 | Conclusion | Bullets + closing line |
+| — | Appendix A | Repo map |
+| — | Appendix B | Production checklist |
+| — | Viewing on GitHub | Images + LaTeX note |
+| — | References | BibTeX |
 
-Supporting files:
-
-- `article/notation.md` — symbol glossary  
-- `article/features-that-lie.pt-BR.md` — Portuguese review translation  
-- `article/references.bib` — BibTeX  
-- `docs/theory-summary.md` — compressed theory notes  
-- `docs/dataset-design.md`, `docs/experiments-summary.md` — generator and result ranges  
+Supporting files: `article/notation.md`, `article/references.bib`, `article/features-that-lie.pt-BR.md`, `docs/article-roadmap-v3.md`, `docs/theory-summary.md`, `docs/dataset-design.md`, `docs/experiments-summary.md`.

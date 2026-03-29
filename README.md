@@ -9,7 +9,11 @@ A **high observed** event rate on a **small** number of rows is often mistaken f
 
 ## Article (canonical source)
 
-The full write-up is in **[`article/features-that-lie.md`](article/features-that-lie.md)** (Abstract through References, experiments, decision tables). A **Portuguese (pt-BR) translation for review** is in [`article/features-that-lie.pt-BR.md`](article/features-that-lie.pt-BR.md). Supporting material:
+The full write-up is in **[`article/features-that-lie.md`](article/features-that-lie.md)** (Abstract through References, experiments, decision tables). A **Portuguese (pt-BR) translation for review** is in [`article/features-that-lie.pt-BR.md`](article/features-that-lie.pt-BR.md). **Planning note (v3 focus — EDA + general correlation):** [`docs/article-roadmap-v3.md`](docs/article-roadmap-v3.md).
+
+**GitHub preview:** figure links inside `article/*.md` use `../figures/*.png` so they render when you open the Markdown file in the GitHub UI. Inline math uses GitHub’s [LaTeX renderer](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions) (subscripts written as `n_{c}` to avoid underscore clashes). For richer layout, use the portfolio HTML build.
+
+Supporting material:
 
 - [`article/notation.md`](article/notation.md) — symbol glossary  
 - [`article/references.bib`](article/references.bib) — BibTeX  
