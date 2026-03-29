@@ -10,7 +10,7 @@
 
 ## Resumo
 
-Num case técnico, a **análise exploratória** vai além de listar tipos e missingness. Para variáveis **categóricas** é preciso olhar **com que frequência cada nível aparece** ($n_{c}$) **e** a **proporção empírica da classe positiva** dentro de cada nível — não tratar uma proporção crua como um facto. Um nível com **taxa observada alta** em **poucas** linhas é, em geral, uma **estimativa de alta variância**, convidando a **viés** e **sobreajuste** se for usada no modelo sem intervalos, suavização ou **âmbito de ajuste** explícito. Em paralelo, quando **duas preditoras** (numéricas, codificadas ou mistas) estão **fortemente correlacionadas**, equipas costumam retirar uma por “colinearidade” sem verificar a **contribuição para o target** em dados de validação. Este artigo unifica os dois pontos: **estatísticas amostrais são estimadores** — a precisão depende de $n_{c}$ (ou tamanho amostral efectivo) e de se as contagens foram calculadas em treino, teste ou folds (**vazamento**). Revisamos EMV e variância para taxas binomiais, intervalos **Agresti–Coull**, suavização **Beta–Binomial**, codificações pelo **estimando**, e o que inspeccionar quando $\lvert r \rvert$ é grande (**VIF** e coeficientes em modelos lineares; **importância por permutação**, **informação mútua** e **modelos aninhados** de forma mais geral). Quatro experimentos reproduzíveis em dados **sintéticos** ilustram as afirmações. Um **checklist** de produção fecha o ciclo.
+Num case técnico, a **análise exploratória** vai além de listar tipos e missingness. Para variáveis **categóricas** é preciso olhar **com que frequência cada nível aparece** ($n_c$) **e** a **proporção empírica da classe positiva** dentro de cada nível — não tratar uma proporção crua como um facto. Um nível com **taxa observada alta** em **poucas** linhas é, em geral, uma **estimativa de alta variância**, convidando a **viés** e **sobreajuste** se for usada no modelo sem intervalos, suavização ou **âmbito de ajuste** explícito. Em paralelo, quando **duas preditoras** (numéricas, codificadas ou mistas) estão **fortemente correlacionadas**, equipas costumam retirar uma por “colinearidade” sem verificar a **contribuição para o target** em dados de validação. Este artigo unifica os dois pontos: **estatísticas amostrais são estimadores** — a precisão depende de $n_c$ (ou tamanho amostral efectivo) e de se as contagens foram calculadas em treino, teste ou folds (**vazamento**). Revisamos EMV e variância para taxas binomiais, intervalos **Agresti–Coull**, suavização **Beta–Binomial**, codificações pelo **estimando**, e o que inspeccionar quando $|r|$ é grande (**VIF** e coeficientes em modelos lineares; **importância por permutação**, **informação mútua** e **modelos aninhados** de forma mais geral). Quatro experimentos reproduzíveis em dados **sintéticos** ilustram as afirmações. Um **checklist** de produção fecha o ciclo.
 
 **Palavras-chave:** análise exploratória, features categóricas, target encoding, estimação binomial, suavização bayesiana, multicolinearidade, vazamento, detecção de fraude.
 
@@ -22,9 +22,9 @@ A maior parte dos fluxos de modelação começa por **análise exploratória**. 
 
 Surge uma segunda lacuna depois de **triagem bivariada**. Matrizes de correlação — Pearson para relações mais lineares, Spearman para monótonas — são calculadas para colunas **numéricas** e, após codificação, para colunas **derivadas**. Quando duas preditoras correlacionam **fortemente**, alguém pode propor retirar uma para reduzir redundância. Isso pode ser correcto ou catastrófico. A **correlação mede associação entre preditoras**; **não** responde, por si só, se ambas as colunas **ajudam a prever** o target, sobretudo em modelos **não lineares** ou com **interacções**.
 
-A postura deste artigo é estatística: **todo o resumo que entra no modelo é um estimador** com variância e uma **amostra correcta** em que deve ser ajustado. Para um nível $c$, a proporção $\hat{p}_{c} = k_{c}/n_{c}$ é um EMV; a variância amostral escala como $1/n_{c}$. A **suavização** é a média a posteriori Beta–Binomial quando esse é o prior escolhido [3,4]. O **vazamento** é usar informação do rótulo que não existirá em scoring ao construir esses resumos [6].
+A postura deste artigo é estatística: **todo o resumo que entra no modelo é um estimador** com variância e uma **amostra correcta** em que deve ser ajustado. Para um nível $c$, a proporção $\hat{p}_c = k_c/n_c$ é um EMV; a variância amostral escala como $1/n_c$. A **suavização** é a média a posteriori Beta–Binomial quando esse é o prior escolhido [3,4]. O **vazamento** é usar informação do rótulo que não existirá em scoring ao construir esses resumos [6].
 
-**O que levar da leitura.** (1) Na EDA, para categóricas com **alta proporção no target**, acompanhar sempre a taxa com **$n_{c}$**, acrescentar um **intervalo binomial** (p.ex. Agresti–Coull) e considerar **suavização** antes de confiar numa estimativa pontual. (2) Quando **quaisquer** preditoras correlacionam muito, **investigar** com ferramentas orientadas ao alvo (importância por permutação, informação mútua, comparação de modelos em hold-out) e, em modelos **lineares**, **VIF / regularização** — não retirar colunas só por $\lvert r \rvert$. (3) **Categóricas codificadas por target** são um caso especial importante: podem correlacionar forte e ambas continuarem **informativas para $Y$**.
+**O que levar da leitura.** (1) Na EDA, para categóricas com **alta proporção no target**, acompanhar sempre a taxa com **$n_c$**, acrescentar um **intervalo binomial** (p.ex. Agresti–Coull) e considerar **suavização** antes de confiar numa estimativa pontual. (2) Quando **quaisquer** preditoras correlacionam muito, **investigar** com ferramentas orientadas ao alvo (importância por permutação, informação mútua, comparação de modelos em hold-out) e, em modelos **lineares**, **VIF / regularização** — não retirar colunas só por $|r|$. (3) **Categóricas codificadas por target** são um caso especial importante: podem correlacionar forte e ambas continuarem **informativas para $Y$**.
 
 Os **experimentos sintéticos** neste repositório exageram alguns efeitos para os gráficos; em **produção** vêem-se mais frequentemente taxas **altas mas não perfeitas** sob baixo suporte — aplicam-se as **mesmas ferramentas**.
 
@@ -34,33 +34,33 @@ Os **experimentos sintéticos** neste repositório exageram alguns efeitos para 
 
 ## 2. Uma estatística ao nível da categoria é um estimador
 
-Se quase nada foi observado no nível $c$, a taxa empírica $\hat{p}_{c}$ é um **resumo ruidoso**: pode ficar perto de $0{,}9$ ou $1$ ao acaso mesmo quando a taxa positiva de longo prazo é moderada. **Poucas linhas implicam alta variância** em $\hat{p}_{c}$. Usar essa taxa como feature numérica sem encolhimento ou regularização injecta **entradas de alta variância** e favorece **sobreajuste** em níveis raros.
+Se quase nada foi observado no nível $c$, a taxa empírica $\hat{p}_c$ é um **resumo ruidoso**: pode ficar perto de $0{,}9$ ou $1$ ao acaso mesmo quando a taxa positiva de longo prazo é moderada. **Poucas linhas implicam alta variância** em $\hat{p}_c$. Usar essa taxa como feature numérica sem encolhimento ou regularização injecta **entradas de alta variância** e favorece **sobreajuste** em níveis raros.
 
-Formalmente, seja $X$ categórica e $c$ um nível fixo. Entre $n_{c}$ linhas de treino com $X=c$, seja $k_{c}$ a contagem com $Y=1$. A **proporção amostral**
-
-$$
-\hat{p}_{c} = \frac{k_{c}}{n_{c}}
-$$
-
-é o **EMV** de $p_{c} = P(Y=1 \mid X=c)$ sob binomial [7]. A variância amostral (dado $n_{c}$) é
+Formalmente, seja $X$ categórica e $c$ um nível fixo. Entre $n_c$ linhas de treino com $X=c$, seja $k_c$ a contagem com $Y=1$. A **proporção amostral**
 
 $$
-\mathrm{Var}(\hat{p}_{c}) = \frac{p_{c}(1-p_{c})}{n_{c}}.
+\hat{p}_c = \frac{k_c}{n_c}
 $$
 
-**Baixo suporte** significa $n_{c}$ pequeno, logo variância grande: $\hat{p}_{c}$ é um **estimador de alta variância**. O valor **observado** pode parecer extremo mesmo quando $p_{c}$ não o é.
+é o **EMV** de $p_c = P(Y=1 \mid X=c)$ sob binomial [7]. A variância amostral (dado $n_c$) é
 
-A variância **plug-in** $\hat{p}_{c}(1-\hat{p}_{c})/n_{c}$ é **zero** quando $\hat{p}_{c}\in\{0,1\}$, sugerindo falsamente certeza. Intervalos **Wilson**, **Agresti–Coull** e **Clopper–Pearson** mantêm-se largos nesse regime [1,2].
+$$
+\mathrm{Var}(\hat{p}_c) = \frac{p_c(1-p_c)}{n_c}.
+$$
 
-**Consequência.** Target encoding que mapeia $c$ para $\hat{p}_{c}$ não grava um “risco verdadeiro” no nível; passa uma **estimativa** governada por $n_{c}$.
+**Baixo suporte** significa $n_c$ pequeno, logo variância grande: $\hat{p}_c$ é um **estimador de alta variância**. O valor **observado** pode parecer extremo mesmo quando $p_c$ não o é.
 
-**Assimptótica.** Para $n_{c}$ grande, o EMV é aproximadamente normal. Dados de fraude têm muitas vezes **cauda longa** de níveis esparsos — onde atalhos falham. **Nunca tratar $\hat{p}_{c}$ como igual a $p_{c}$** quando $n_{c}$ é pequeno.
+A variância **plug-in** $\hat{p}_c(1-\hat{p}_c)/n_c$ é **zero** quando $\hat{p}_c$ é $0$ ou $1$, sugerindo falsamente certeza. Intervalos **Wilson**, **Agresti–Coull** e **Clopper–Pearson** mantêm-se largos nesse regime [1,2].
+
+**Consequência.** Target encoding que mapeia $c$ para $\hat{p}_c$ não grava um “risco verdadeiro” no nível; passa uma **estimativa** governada por $n_c$.
+
+**Assimptótica.** Para $n_c$ grande, o EMV é aproximadamente normal. Dados de fraude têm muitas vezes **cauda longa** de níveis esparsos — onde atalhos falham. **Nunca tratar $\hat{p}_c$ como igual a $p_c$** quando $n_c$ é pequeno.
 
 ---
 
 ## 3. O problema de baixo suporte: desconstrução numérica
 
-Na EDA pode aparecer $(k_{c}, n_{c}) = (5,5)$ logo $\hat{p}_{c}=1$, ou $(7,10)$ logo $\hat{p}_{c}=0{,}7$. **Produção** assemelha-se mais ao segundo padrão do que a 100% literais em cinco linhas; exemplos sintéticos por vezes usam o caso limite porque **dramatiza** a falha plug-in — a **lógica** é a mesma para **qualquer** $\hat{p}_{c}$ **alta** com $n_{c}$ **pequeno**.
+Na EDA pode aparecer $(k_c, n_c) = (5,5)$ logo $\hat{p}_c=1$, ou $(7,10)$ logo $\hat{p}_c=0{,}7$. **Produção** assemelha-se mais ao segundo padrão do que a 100% literais em cinco linhas; exemplos sintéticos por vezes usam o caso limite porque **dramatiza** a falha plug-in — a **lógica** é a mesma para **qualquer** $\hat{p}_c$ **alta** com $n_c$ **pequeno**.
 
 A proporção ajustada Agresti–Coull usa
 
@@ -70,36 +70,36 @@ $$
 
 Para $(k,n)=(5,5)$, $\tilde{p}=7/9\approx 0.78$. Um intervalo nominal a 95% é $\tilde{p} \pm z_{0.975}\sqrt{\tilde{p}(1-\tilde{p})/\tilde{n}}$, muitas vezes entre **0,5** e **1** após truncagem [1]. Para $(k,n)=(7,10)$, o intervalo continua **largo** face a um nível com milhares de linhas.
 
-Contraste com nível de **$n_{c}$ alto** (p.ex. $n_{c}\sim 10^{4}$, $\hat{p}_{c}$ perto da taxa global): a mesma maquinaria dá faixa **estreita**. A pergunta “qual é $p_{c}$?” tem **precisão** diferente por nível.
+Contraste com nível de **$n_c$ alto** (p.ex. $n_c\sim 10^{4}$, $\hat{p}_c$ perto da taxa global): a mesma maquinaria dá faixa **estreita**. A pergunta “qual é $p_c$?” tem **precisão** diferente por nível.
 
-| Perfil | $n_{c}$ (ilustrativo) | $k_{c}$ | $\hat{p}_{c}$ | Intervalo AC 95% (ordem de grandeza) |
+| Perfil | $n_c$ (ilustrativo) | $k_c$ | $\hat{p}_c$ | Intervalo AC 95% (ordem de grandeza) |
 |--------|------------------------|---------|----------------|----------------------------------------|
 | Esparso, extremo | $\approx 5$ | $\approx 5$ | $1.0$ | Muito largo |
 | Esparso, alto | $10$ | $7$ | $0.7$ | Ainda largo |
-| Bem suportado | $\approx 10^{4}$ | $\approx 0{,}004\,n_{c}$ | $\approx 0{,}004$ | Estreito |
+| Bem suportado | $\approx 10^{4}$ | $\approx 0{,}004\,n_c$ | $\approx 0{,}004$ | Estreito |
 
-**Regra prática.** Reportar sempre **$n_{c}$** junto de cada taxa por nível nos outputs de EDA. Abaixo de algumas dezenas de linhas (limiar afinado com **domínio** e **desempenho em hold-out**), tratar taxas como **baixo suporte**: mostrar **intervalos**, aplicar **suavização** ou agregar níveis antes de declarar “sinal forte”.
+**Regra prática.** Reportar sempre **$n_c$** junto de cada taxa por nível nos outputs de EDA. Abaixo de algumas dezenas de linhas (limiar afinado com **domínio** e **desempenho em hold-out**), tratar taxas como **baixo suporte**: mostrar **intervalos**, aplicar **suavização** ou agregar níveis antes de declarar “sinal forte”.
 
 ---
 
 ## 4. Suavização bayesiana: solução fundamentada
 
-Prior $p_{c} \sim \mathrm{Beta}(\alpha,\beta)$, verosimilhança $k_{c} \mid p_{c} \sim \mathrm{Binomial}(n_{c}, p_{c})$. Posterior
+Prior $p_c \sim \mathrm{Beta}(\alpha,\beta)$, verosimilhança $k_c \mid p_c \sim \mathrm{Binomial}(n_c, p_c)$. Posterior
 
 $$
-p_{c} \mid k_{c}, n_{c} \sim \mathrm{Beta}(\alpha + k_{c},\; \beta + n_{c} - k_{c}),
+p_c \mid k_c, n_c \sim \mathrm{Beta}(\alpha + k_c,\; \beta + n_c - k_c),
 $$
 
 com média
 
 $$
-\tilde{p}_{c}^{\mathrm{Bayes}} = \frac{\alpha + k_{c}}{\alpha + \beta + n_{c}}
-= w_{c}\,\hat{p}_{c} + (1-w_{c})\,\mu_0,
+\tilde{p}_c^{\mathrm{Bayes}} = \frac{\alpha + k_c}{\alpha + \beta + n_c}
+= w_c\,\hat{p}_c + (1-w_c)\,\mu_0,
 \qquad
-w_{c} = \frac{n_{c}}{n_{c} + \alpha + \beta}.
+w_c = \frac{n_c}{n_c + \alpha + \beta}.
 $$
 
-$n_{c}$ pequeno puxa a estimativa para a média a priori $\mu_0$ (frequentemente a taxa global $\bar{p}$); $n_{c}$ grande recupera o EMV [3,4].
+$n_c$ pequeno puxa a estimativa para a média a priori $\mu_0$ (frequentemente a taxa global $\bar{p}$); $n_c$ grande recupera o EMV [3,4].
 
 **Bibliotecas.** Parâmetros de suavização em `category_encoders` mapeiam para **força do prior** [5]. `TargetEncoder` do **scikit-learn** (1.2+) usa estatísticas **cross-fitted** — alinhado com **âmbito de ajuste** correcto.
 
@@ -121,9 +121,9 @@ para cada linha i em X_apply:
 | Codificação | Fórmula (nível $c$) | Estima | Usa $Y$? | Vazamento | Alta card. |
 |-------------|---------------------|--------|----------|-----------|------------|
 | One-hot | $\mathbb{1}[X=c]$ | Pertencer a $c$ | Não | Nenhum | Fraco |
-| Frequência | $n_{c}/N$ | $\hat{P}(X=c)$ | Não | Nenhum | Bom |
-| Target naïve | $k_{c}/n_{c}$ | EMV de $P(Y{=}1\mid X{=}c)$ | Sim | **Alto** se mal feito | Bom |
-| Target suavizado | $(k_{c}{+}\alpha)/(n_{c}{+}\alpha{+}\beta)$ | Média posterior | Sim | Menor | Bom |
+| Frequência | $n_c/N$ | $\hat{P}(X=c)$ | Não | Nenhum | Bom |
+| Target naïve | $k_c/n_c$ | EMV de $P(Y=1 \mid X=c)$ | Sim | **Alto** se mal feito | Bom |
+| Target suavizado | $(k_c+\alpha)/(n_c+\alpha+\beta)$ | Média posterior | Sim | Menor | Bom |
 
 **Quando usar (resumo).** One-hot para $C$ baixa e modelos lineares. Frequência quando a **raridade** de $X$ importa. Target naïve sobretudo como **referência** — produção deve preferir **OOF/CV** ou suavizado. Árvores com categorias **nativas** podem dispensar codificação manual; colunas target podem acrescentar escalar — **validar** em hold-out [7]. **Embeddings** fora de âmbito; os mesmos cuidados de **âmbito** se forem treinados com rótulo.
 
@@ -139,7 +139,7 @@ Correlação **par a par** (Pearson ou Spearman) é achado de **triagem**, não 
 
 1. **Ligação ao target:** informação mútua com $Y$, importância por permutação, ou **variação de métrica** em validação ao retirar cada coluna **mantendo a outra**.
 2. **Modelos lineares:** **VIF** e estabilidade dos coeficientes; **ridge/elastic net** muitas vezes tratam melhor a redundância do que cortes arbitrários.
-3. **Modelos não lineares** (árvores, GBDT): importância e métricas em hold-out pesam mais que $\lvert r \rvert$ entre features; **dependência parcial** ou SHAP com **cuidado** sob correlação.
+3. **Modelos não lineares** (árvores, GBDT): importância e métricas em hold-out pesam mais que $|r|$ entre features; **dependência parcial** ou SHAP com **cuidado** sob correlação.
 4. **Correlação parcial** / controlar confundidores quando a história causal sugere causa comum.
 
 **Caso especial: categóricas codificadas por target.** A correlação entre duas colunas target-encoded mede associação linear entre **taxas atribuídas por linha**; **não** implica **redundância condicional** para $Y$. A tabela pequena abaixo é o contraexemplo limpo.
@@ -155,9 +155,9 @@ Correlação **par a par** (Pearson ou Spearman) é achado de **triagem**, não 
 | 7 | B | P | 0 |
 | 8 | C | N | 0 |
 
-Encodings naïves de treino dão $\mathrm{Corr}(z_1,z_2)\approx 0{,}72$, mas $P(Y{=}1\mid X_1{=}A)=1$ e $P(Y{=}1\mid X_2{=}M)=1/4$, e um modelo com **ambas** pode superar cada uma sozinha.
+Encodings naïves de treino dão $\mathrm{Corr}(z_1,z_2)\approx 0{,}72$, mas $P(Y=1 \mid X_1=A)=1$ e $P(Y=1 \mid X_2=M)=1/4$, e um modelo com **ambas** pode superar cada uma sozinha.
 
-**Conclusão.** Tratar **$\lvert r \rvert$ alto** como estímulo para **diagnósticos orientados ao target** e **comparações de modelo**, não como licença para apagar features.
+**Conclusão.** Tratar **$|r|$ alto** como estímulo para **diagnósticos orientados ao target** e **comparações de modelo**, não como licença para apagar features.
 
 ---
 
@@ -181,9 +181,9 @@ Para colunas **derivadas do target**, o passo 2 é **obrigatório** antes de qua
 
 **Exemplo mínimo.** Três linhas com nível $c$ e rótulos $(1,0,0)$. Taxa target **naïve** **incluindo** cada linha torna a feature um **proxy de $Y$**. Métricas de treino incham; **teste** diz a verdade. **Correcção:** contagens **out-of-fold**, leave-one-out, ou **só treino** [6].
 
-**Impacto no modelo.** AUC-PR / precisão de treino inflacionados, importância **enganadora**, mau comportamento em **deploy**. **$n_{c}$** baixo amplifica o efeito de cada rótulo em $\hat{p}_{c}$.
+**Impacto no modelo.** AUC-PR / precisão de treino inflacionados, importância **enganadora**, mau comportamento em **deploy**. **$n_c$** baixo amplifica o efeito de cada rótulo em $\hat{p}_c$.
 
-**Teste rápido.** Treino dispara e validação estagna após features de target → auditar **onde** $k_{c}$ e $n_{c}$ foram calculados.
+**Teste rápido.** Treino dispara e validação estagna após features de target → auditar **onde** $k_c$ e $n_c$ foram calculados.
 
 ---
 
@@ -203,16 +203,16 @@ Figuras em `figures/` (DPI em `config.yaml`). Ver `docs/dataset-design.md` e `do
 
 | Experimento | Insight | Caminho da figura |
 |-------------|---------|-------------------|
-| A | Intervalos largos para $n_{c}$ minúsculo; suavização encolhe para $\bar{p}$ | `../figures/exp_a_perfect_feature.png` |
+| A | Intervalos largos para $n_c$ minúsculo; suavização encolhe para $\bar{p}$ | `../figures/exp_a_perfect_feature.png` |
 | B | Target naïve frequentemente maior lacuna treino–teste | `../figures/exp_b_smoothing_effect.png` |
-| C | $\lvert r \rvert$ alto não autoriza retirar coluna sem checagens ao modelo | `../figures/exp_c_correlation_trap.png` |
+| C | TEs naïve podem correlacionar moderadamente após pooling e ambas seguem informativas; hold-out favorece o modelo conjunto aqui | `../figures/exp_c_correlation_trap.png` |
 | D | Pooling com rótulos infla AUC-PR de **treino** | `../figures/exp_d_encoding_comparison.png` |
 
 ### Figura 1 — Experimento A
 
 ![Figura 1](../figures/exp_a_perfect_feature.png)
 
-**Configuração.** Split estratificado; no código, um **nível sintético espars** (todas as linhas mantidas em treino) com $n_{c}{=}5$, $k_{c}{=}5$. Intervalos Agresti–Coull; painel com força do prior $m=\alpha+\beta$.
+**Configuração.** Split estratificado; no código, um **nível sintético espars** (todas as linhas mantidas em treino) com $n_c=5$, $k_c=5$. Intervalos Agresti–Coull; painel com força do prior $m=\alpha+\beta$.
 
 ### Figura 2 — Experimento B
 
@@ -224,7 +224,7 @@ XGBoost com numéricos e país como target naïve, suavizado ou one-hot.
 
 ![Figura 3](../figures/exp_c_correlation_trap.png)
 
-Target naïve para `country` e `merchant_category` só no treino; comparação de modelos.
+Target naïve para `country` e `merchant_category` só no treino; $r$ de Pearson nas codificações por linha; informação mútua com $Y$; XGBoost com ambas as TEs vs uma removida. Painel (a): pooling em muitos níveis atenua a correlação linear face ao par latente; (b)–(c): métricas em hold-out e ligação ao target antes de retirar colunas.
 
 ### Figura 4 — Experimento D
 
@@ -236,7 +236,7 @@ Pipeline com vs sem vazamento por âmbito de codificação.
 
 ## 10. Enquadramento de codificação
 
-1. Sinalizar **$n_{c}$** pequeno na EDA; intervalos, suavização ou agregação antes de $\hat{p}_{c}$ cru.
+1. Sinalizar **$n_c$** pequeno na EDA; intervalos, suavização ou agregação antes de $\hat{p}_c$ cru.
 2. Escolher codificação (§5).
 3. Mapas com target: definir **âmbito** (só treino, OOF, CV) antes de afinação.
 4. Após correlações, seguir **§7** antes de retirar colunas.
@@ -247,17 +247,17 @@ Pipeline com vs sem vazamento por âmbito de codificação.
 | Baixa | Alto/nível | Logística | One-hot ou target suavizado | Treino + CV |
 | Alta | Cauda | GBDT nativo | Nativo ± target suavizado | OOF / só treino |
 | Alta | Cauda | Rede | Embedding ou frequência | Sem vazamento |
-| Qualquer | Qualquer | Qualquer | $\lvert r \rvert$ alto | §7 antes de retirar |
+| Qualquer | Qualquer | Qualquer | $|r|$ alto | §7 antes de retirar |
 
 ---
 
 ## 11. Conclusão
 
-**EDA** em categóricas deve combinar **contagens**, **taxas de target** e **incerteza** (intervalos, suavização). **Alta correlação** entre preditoras deve disparar checagens **orientadas ao target** e **baseadas em modelo**, não remoção automática. Níveis **target-encoded** são um caso em que $\lvert r \rvert$ pode enganar.
+**EDA** em categóricas deve combinar **contagens**, **taxas de target** e **incerteza** (intervalos, suavização). **Alta correlação** entre preditoras deve disparar checagens **orientadas ao target** e **baseadas em modelo**, não remoção automática. Níveis **target-encoded** são um caso em que $|r|$ pode enganar.
 
 **Resumo**
 
-- $\hat{p}_{c}$ tem variância $\sim 1/n_{c}$; plug-in falha em $0$ e $1$.
+- $\hat{p}_c$ tem variância $\sim 1/n_c$; plug-in falha em $0$ e $1$.
 - Intervalos Agresti–Coull quantificam incerteza em níveis esparsos.
 - Suavização Beta–Binomial encolhe com análogos em bibliotecas.
 - Codificações diferem pelo **estimando**.
@@ -266,7 +266,7 @@ Pipeline com vs sem vazamento por âmbito de codificação.
 
 Gráficos quantitativos dependem do gerador; o **fluxo de trabalho** não.
 
-**Frase de fecho.** **Perfile categóricas com $n_{c}$ e intervalos, trate correlação como estímulo para checagens orientadas ao modelo, e só faça deploy de codificações depois de saber de que amostra saiu cada número.**
+**Frase de fecho.** **Perfile categóricas com $n_c$ e intervalos, trate correlação como estímulo para checagens orientadas ao modelo, e só faça deploy de codificações depois de saber de que amostra saiu cada número.**
 
 ---
 
@@ -289,20 +289,20 @@ Gráficos quantitativos dependem do gerador; o **fluxo de trabalho** não.
 
 ## Apêndice B: Checklist de produção
 
-- [ ] Tabelas de EDA com **$n_{c}$** e **intervalos** (ou taxas suavizadas) para níveis esparsos.
+- [ ] Tabelas de EDA com **$n_c$** e **intervalos** (ou taxas suavizadas) para níveis esparsos.
 - [ ] Limiares de baixo suporte documentados; regras de **Other** / agregação.
 - [ ] Sem estatísticas target **naïve** ajustadas com rótulos de validação/teste.
 - [ ] Target encoding **OOF/CV** ou só treino; política no model card.
-- [ ] Pares com $\lvert r \rvert$ alto passam pela **§7** antes de remoções.
+- [ ] Pares com $|r|$ alto passam pela **§7** antes de remoções.
 - [ ] Métricas de validação com/sem colunas suspeitas registadas.
-- [ ] Plano de refresh / deriva para $n_{c}$ e taxas.
+- [ ] Plano de refresh / deriva para $n_c$ e taxas.
 
 ---
 
 ## Ver este artigo no GitHub
 
 - **Imagens:** caminhos relativos `../figures/*.png` a partir desta pasta.
-- **Equações:** o GitHub renderiza [LaTeX em Markdown](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions) com `$...$` e `$$...$$`. Subscritos usam chaves: `n_{c}`, `k_{c}`, para evitar conflito com `_` de ênfase.
+- **Equações:** o GitHub renderiza [LaTeX em Markdown](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions) com `$...$` e `$$...$$`. Prefira subscritos simples sem chavetas extra (`$n_c$`, `$\hat{p}_c$`); evite `\{...\}` em math curto quando a prosa for mais legível.
 - Para **layout e matemática** de portfólio, gerar **HTML** no repositório portfolio (MathJax).
 
 ---

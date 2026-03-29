@@ -8,7 +8,7 @@
 
 ## Abstract
 
-In a technical case, **exploratory data analysis** is more than listing dtypes and missingness. For **categorical** variables you must look at **how often each level appears** ($n_{c}$) **and** the **empirical proportion of the positive class** within each level — not treat a raw proportion as a fact. A level with a **high observed rate** on **few** rows is often a **high-variance estimate**, inviting **bias** and **overfitting** if it is fed into a model without intervals, smoothing, or an explicit **fit scope**. Separately, when **any two predictors** (numeric, encoded, or mixed) are **highly correlated**, teams often drop one for “collinearity” without checking **contribution to the target** on hold-out data. This article unifies both issues: **sample statistics are estimators** — precision depends on $n_{c}$ (or effective sample size) and on whether counts were computed on train, test, or folds (**leakage**). We review MLE and variance for binomial rates, **Agresti–Coull** intervals, **Beta–Binomial** smoothing, encodings by **estimand**, and what to inspect when $\lvert r \rvert$ is large (**VIF** and coefficients for linear models; **permutation importance**, **mutual information**, and **nested models** more broadly). Four reproducible experiments on **synthetic** data illustrate the claims. A short **production checklist** closes the loop.
+In a technical case, **exploratory data analysis** is more than listing dtypes and missingness. For **categorical** variables you must look at **how often each level appears** ($n_c$) **and** the **empirical proportion of the positive class** within each level — not treat a raw proportion as a fact. A level with a **high observed rate** on **few** rows is often a **high-variance estimate**, inviting **bias** and **overfitting** if it is fed into a model without intervals, smoothing, or an explicit **fit scope**. Separately, when **any two predictors** (numeric, encoded, or mixed) are **highly correlated**, teams often drop one for “collinearity” without checking **contribution to the target** on hold-out data. This article unifies both issues: **sample statistics are estimators** — precision depends on $n_c$ (or effective sample size) and on whether counts were computed on train, test, or folds (**leakage**). We review MLE and variance for binomial rates, **Agresti–Coull** intervals, **Beta–Binomial** smoothing, encodings by **estimand**, and what to inspect when $|r|$ is large (**VIF** and coefficients for linear models; **permutation importance**, **mutual information**, and **nested models** more broadly). Four reproducible experiments on **synthetic** data illustrate the claims. A short **production checklist** closes the loop.
 
 **Keywords:** exploratory data analysis, categorical features, target encoding, binomial estimation, Bayesian smoothing, multicollinearity, leakage, fraud detection.
 
@@ -20,9 +20,9 @@ Most modelling workflows start with **exploratory data analysis**. You open the 
 
 A second gap appears after **bivariate screening**. Correlation matrices — Pearson for roughly linear relationships, Spearman for monotone ones — are computed for **numeric** columns and, after encoding, for **derived** columns too. When two predictors show **strong correlation**, someone may propose dropping one to reduce redundancy. That can be right or catastrophically wrong. **Correlation measures association between predictors**; it does **not** by itself answer whether both columns **help predict** the target, especially in **nonlinear** models or when **interactions** matter.
 
-This article’s stance is statistical: **every summary you plug into a model is an estimator** with a variance and a correct **sample on which it must be fitted**. For a level $c$, the proportion $\hat{p}_{c} = k_{c}/n_{c}$ is an MLE; its sampling variance scales like $1/n_{c}$. **Smoothing** is the Beta–Binomial posterior mean when that model is the chosen prior [3,4]. **Leakage** is using label information that will not exist at scoring time when building those summaries [6].
+This article’s stance is statistical: **every summary you plug into a model is an estimator** with a variance and a correct **sample on which it must be fitted**. For a level $c$, the proportion $\hat{p}_c = k_c/n_c$ is an MLE; its sampling variance scales like $1/n_c$. **Smoothing** is the Beta–Binomial posterior mean when that model is the chosen prior [3,4]. **Leakage** is using label information that will not exist at scoring time when building those summaries [6].
 
-**What you can take away.** (1) In EDA, for categoricals with **high target ratio**, always pair the rate with **$n_{c}$**, add a **binomial interval** (e.g. Agresti–Coull), and consider **smoothing** before trusting a point estimate. (2) When **any** predictors correlate highly, **investigate** with target-aware tools (permutation importance, mutual information, hold-out model comparison) and, for **linear** models, **VIF / regularisation** — do not drop columns on $\lvert r \rvert$ alone. (3) **Target-encoded** categoricals are an important special case: they can correlate strongly yet both remain **informative for $Y$**.
+**What you can take away.** (1) In EDA, for categoricals with **high target ratio**, always pair the rate with **$n_c$**, add a **binomial interval** (e.g. Agresti–Coull), and consider **smoothing** before trusting a point estimate. (2) When **any** predictors correlate highly, **investigate** with target-aware tools (permutation importance, mutual information, hold-out model comparison) and, for **linear** models, **VIF / regularisation** — do not drop columns on $|r|$ alone. (3) **Target-encoded** categoricals are an important special case: they can correlate strongly yet both remain **informative for $Y$**.
 
 The **synthetic** experiments in this repository exaggerate some effects for plots; **production** data usually shows **high-but-not-perfect** rates under low support — the **same tools** apply.
 
@@ -32,33 +32,33 @@ The **synthetic** experiments in this repository exaggerate some effects for plo
 
 ## 2. A category-level statistic is an estimator
 
-If almost nothing has been observed at level $c$, the empirical rate $\hat{p}_{c}$ is a **noisy summary**: it can land near $0.9$ or $1$ by chance even when the long-run positive rate is moderate. **Few rows imply high variance** in $\hat{p}_{c}$. Using that rate as a numeric feature without shrinkage or regularisation injects **high-variance inputs** and encourages **overfitting** on rare levels.
+If almost nothing has been observed at level $c$, the empirical rate $\hat{p}_c$ is a **noisy summary**: it can land near $0.9$ or $1$ by chance even when the long-run positive rate is moderate. **Few rows imply high variance** in $\hat{p}_c$. Using that rate as a numeric feature without shrinkage or regularisation injects **high-variance inputs** and encourages **overfitting** on rare levels.
 
-Formally, let $X$ be categorical and $c$ a fixed level. Among $n_{c}$ training rows with $X=c$, let $k_{c}$ be the count with $Y=1$. The **sample proportion**
-
-$$
-\hat{p}_{c} = \frac{k_{c}}{n_{c}}
-$$
-
-is the **maximum likelihood estimator** (MLE) of $p_{c} = P(Y=1 \mid X=c)$ under a binomial model [7]. Its sampling variance (given $n_{c}$) is
+Formally, let $X$ be categorical and $c$ a fixed level. Among $n_c$ training rows with $X=c$, let $k_c$ be the count with $Y=1$. The **sample proportion**
 
 $$
-\mathrm{Var}(\hat{p}_{c}) = \frac{p_{c}(1-p_{c})}{n_{c}}.
+\hat{p}_c = \frac{k_c}{n_c}
 $$
 
-**Low support** means small $n_{c}$, hence large variance: $\hat{p}_{c}$ is a **high-variance estimator**. The **observed** rate can look extreme even when $p_{c}$ is not.
+is the **maximum likelihood estimator** (MLE) of $p_c = P(Y=1 \mid X=c)$ under a binomial model [7]. Its sampling variance (given $n_c$) is
 
-**Plug-in variance** uses $\hat{p}_{c}(1-\hat{p}_{c})/n_{c}$; when $\hat{p}_{c}\in\{0,1\}$ this is **zero**, falsely suggesting certainty. **Wilson**, **Agresti–Coull**, and **Clopper–Pearson** intervals stay wide in that regime [1,2].
+$$
+\mathrm{Var}(\hat{p}_c) = \frac{p_c(1-p_c)}{n_c}.
+$$
 
-**Consequence.** Target encoding that maps $c$ to $\hat{p}_{c}$ does not stamp a “true risk” on the level; it passes an **estimate** whose reliability is governed by $n_{c}$.
+**Low support** means small $n_c$, hence large variance: $\hat{p}_c$ is a **high-variance estimator**. The **observed** rate can look extreme even when $p_c$ is not.
 
-**Asymptotics.** For large $n_{c}$, the MLE is approximately normal. Fraud data often has a **long tail** of sparse levels — where shortcuts fail. **Never treat $\hat{p}_{c}$ as equal to $p_{c}$** when $n_{c}$ is small.
+**Plug-in variance** uses $\hat{p}_c(1-\hat{p}_c)/n_c$; when $\hat{p}_c$ equals $0$ or $1$ this is **zero**, falsely suggesting certainty. **Wilson**, **Agresti–Coull**, and **Clopper–Pearson** intervals stay wide in that regime [1,2].
+
+**Consequence.** Target encoding that maps $c$ to $\hat{p}_c$ does not stamp a “true risk” on the level; it passes an **estimate** whose reliability is governed by $n_c$.
+
+**Asymptotics.** For large $n_c$, the MLE is approximately normal. Fraud data often has a **long tail** of sparse levels — where shortcuts fail. **Never treat $\hat{p}_c$ as equal to $p_c$** when $n_c$ is small.
 
 ---
 
 ## 3. The low-support problem: a numerical deconstruction
 
-During EDA you might see $(k_{c}, n_{c}) = (5,5)$ so $\hat{p}_{c}=1$, or $(7,10)$ so $\hat{p}_{c}=0.7$. **Production** more often looks like the second pattern than a literal 100% on five rows; synthetic examples sometimes use the boundary case because it **dramatises** plug-in failure — the **logic** is the same for any **high** $\hat{p}_{c}$ with **small** $n_{c}$.
+During EDA you might see $(k_c, n_c) = (5,5)$ so $\hat{p}_c=1$, or $(7,10)$ so $\hat{p}_c=0.7$. **Production** more often looks like the second pattern than a literal 100% on five rows; synthetic examples sometimes use the boundary case because it **dramatises** plug-in failure — the **logic** is the same for any **high** $\hat{p}_c$ with **small** $n_c$.
 
 The Agresti–Coull adjusted proportion uses
 
@@ -68,36 +68,36 @@ $$
 
 For $(k,n)=(5,5)$, $\tilde{p}=7/9\approx 0.78$. A nominal 95% interval is $\tilde{p} \pm z_{0.975}\sqrt{\tilde{p}(1-\tilde{p})/\tilde{n}}$, often spanning roughly **0.5** to **1** after clipping [1]. For $(k,n)=(7,10)$, the interval is still **wide** compared with a level with thousands of rows.
 
-Contrast a **high-$n_{c}$** level (e.g. $n_{c}\sim 10^{4}$, $\hat{p}_{c}$ near the global base rate): the same machinery gives a **narrow** band. The question “what is $p_{c}$?” has different **precision** by level.
+Contrast a **high-$n_c$** level (e.g. $n_c\sim 10^{4}$, $\hat{p}_c$ near the global base rate): the same machinery gives a **narrow** band. The question “what is $p_c$?” has different **precision** by level.
 
-| Profile | $n_{c}$ (illustrative) | $k_{c}$ | $\hat{p}_{c}$ | 95% AC interval (order of magnitude) |
+| Profile | $n_c$ (illustrative) | $k_c$ | $\hat{p}_c$ | 95% AC interval (order of magnitude) |
 |---------|------------------------|---------|----------------|----------------------------------------|
 | Sparse, extreme | $\approx 5$ | $\approx 5$ | $1.0$ | Very wide |
 | Sparse, high | $10$ | $7$ | $0.7$ | Still wide |
-| Well supported | $\approx 10^{4}$ | $\approx 0.004\,n_{c}$ | $\approx 0.004$ | Narrow |
+| Well supported | $\approx 10^{4}$ | $\approx 0.004\,n_c$ | $\approx 0.004$ | Narrow |
 
-**Practical rule of thumb.** Always report **$n_{c}$** next to each level’s target rate in EDA outputs. Below a few dozen rows (threshold tuned with **domain** and **hold-out performance**), treat rates as **low-support**: show **intervals**, apply **smoothing**, or pool levels before declaring a “strong signal.”
+**Practical rule of thumb.** Always report **$n_c$** next to each level’s target rate in EDA outputs. Below a few dozen rows (threshold tuned with **domain** and **hold-out performance**), treat rates as **low-support**: show **intervals**, apply **smoothing**, or pool levels before declaring a “strong signal.”
 
 ---
 
 ## 4. Bayesian smoothing: the principled fix
 
-Prior $p_{c} \sim \mathrm{Beta}(\alpha,\beta)$, likelihood $k_{c} \mid p_{c} \sim \mathrm{Binomial}(n_{c}, p_{c})$. Posterior
+Prior $p_c \sim \mathrm{Beta}(\alpha,\beta)$, likelihood $k_c \mid p_c \sim \mathrm{Binomial}(n_c, p_c)$. Posterior
 
 $$
-p_{c} \mid k_{c}, n_{c} \sim \mathrm{Beta}(\alpha + k_{c},\; \beta + n_{c} - k_{c}),
+p_c \mid k_c, n_c \sim \mathrm{Beta}(\alpha + k_c,\; \beta + n_c - k_c),
 $$
 
 with mean
 
 $$
-\tilde{p}_{c}^{\mathrm{Bayes}} = \frac{\alpha + k_{c}}{\alpha + \beta + n_{c}}
-= w_{c}\,\hat{p}_{c} + (1-w_{c})\,\mu_0,
+\tilde{p}_c^{\mathrm{Bayes}} = \frac{\alpha + k_c}{\alpha + \beta + n_c}
+= w_c\,\hat{p}_c + (1-w_c)\,\mu_0,
 \qquad
-w_{c} = \frac{n_{c}}{n_{c} + \alpha + \beta}.
+w_c = \frac{n_c}{n_c + \alpha + \beta}.
 $$
 
-Small $n_{c}$ pulls the estimate toward the prior mean $\mu_0$ (often the global training rate $\bar{p}$); large $n_{c}$ recovers the MLE [3,4].
+Small $n_c$ pulls the estimate toward the prior mean $\mu_0$ (often the global training rate $\bar{p}$); large $n_c$ recovers the MLE [3,4].
 
 **Libraries.** `category_encoders` smoothing parameters map naturally to **prior strength** [5]. **scikit-learn** `TargetEncoder` (1.2+) uses **cross-fitted** statistics — aligned with correct **fit scope**, even outside a literal Beta–Binomial story.
 
@@ -121,9 +121,9 @@ Tune $m=\alpha+\beta$ by cross-validation or domain rules [3,4]. At scoring, rar
 | Encoding | Formula (level $c$) | Estimates | Uses $Y$? | Leakage risk | High cardinality |
 |----------|---------------------|-----------|-----------|--------------|------------------|
 | One-hot | $\mathbb{1}[X=c]$ | Membership in $c$ | No | None | Poor (sparse) |
-| Frequency | $n_{c}/N$ | $\hat{P}(X=c)$ | No | None | Good |
-| Target (naïve) | $k_{c}/n_{c}$ | $P(Y{=}1\mid X{=}c)$ MLE | Yes | **High** if misfit | Good |
-| Smoothed target | $(k_{c}{+}\alpha)/(n_{c}{+}\alpha{+}\beta)$ | Posterior mean | Yes | Lower; still scope errors | Good |
+| Frequency | $n_c/N$ | $\hat{P}(X=c)$ | No | None | Good |
+| Target (naïve) | $k_c/n_c$ | $P(Y=1 \mid X=c)$ MLE | Yes | **High** if misfit | Good |
+| Smoothed target | $(k_c+\alpha)/(n_c+\alpha+\beta)$ | Posterior mean | Yes | Lower; still scope errors | Good |
 
 **When to use (compact).** One-hot for low $C$ and linear models. Frequency when **rarity** of $X$ matters. Naïve target mainly as a **baseline** — production pipelines should prefer **OOF/CV** or smoothed variants. Tree libraries with **native** categoricals may skip hand-built encodings; target columns can still add a scalar signal — **validate** on hold-out [7]. **Embeddings** are out of scope; label-trained embeddings need the same **scope** discipline.
 
@@ -139,7 +139,7 @@ High **pairwise** correlation (Pearson or Spearman) is a **screening** finding, 
 
 1. **Target linkage.** **Mutual information** with $Y$, **permutation importance** on a validated model, or **compare validation scores** with and without each column (nested or ablation).
 2. **Linear models.** If you fit **linear** or **logistic** regression, check **variance inflation (VIF)** and coefficient stability; **ridge/elastic net** often handle redundancy better than arbitrary dropping.
-3. **Nonlinear models** (trees, GBDT). Importance and **hold-out AUC-PR / log-loss** matter more than $\lvert r \rvert$ between features; inspect **partial dependence** or SHAP **with awareness of correlation** (interpretation gets harder when features are redundant).
+3. **Nonlinear models** (trees, GBDT). Importance and **hold-out AUC-PR / log-loss** matter more than $|r|$ between features; inspect **partial dependence** or SHAP **with awareness of correlation** (interpretation gets harder when features are redundant).
 4. **Partial correlation** / controlling for known confounders when the **data-generating** story suggests a common cause.
 
 **Special case: target-encoded categoricals.** Pearson correlation between two **target-encoded** columns measures linear association between **row-wise** level rates. It still does **not** imply **conditional redundancy** for $Y$. The small table below is the clean counterexample.
@@ -155,9 +155,9 @@ High **pairwise** correlation (Pearson or Spearman) is a **screening** finding, 
 | 7 | B | P | 0 |
 | 8 | C | N | 0 |
 
-Naïve training encodings give $\mathrm{Corr}(z_1,z_2)\approx 0.72$, yet $P(Y{=}1\mid X_1{=}A)=1$ while $P(Y{=}1\mid X_2{=}M)=1/4$, and a model using **both** can beat either alone.
+Naïve training encodings give $\mathrm{Corr}(z_1,z_2)\approx 0.72$, yet $P(Y=1 \mid X_1=A)=1$ while $P(Y=1 \mid X_2=M)=1/4$, and a model using **both** can beat either alone.
 
-**Bottom line.** Treat **high $\lvert r \rvert$** as a prompt to run **target-aware** diagnostics and **model comparisons**, not as permission to delete a feature.
+**Bottom line.** Treat **high $|r|$** as a prompt to run **target-aware** diagnostics and **model comparisons**, not as permission to delete a feature.
 
 ---
 
@@ -181,9 +181,9 @@ For **target-derived** columns, step 2 is **mandatory** before any drop [7].
 
 **Tiny example.** Three rows share level $c$ with labels $(1,0,0)$. A **naïve** target rate for $c$ computed **including** each row makes the feature a **proxy for $Y$**. Training metrics inflate; **test** performance tells the truth. **Fix:** **out-of-fold** counts, leave-one-out, or **strictly training-only** aggregates [6].
 
-**Model impact.** Inflated **training** AUC-PR / accuracy, misleading **importance**, and **poor deployment** behaviour. **Low $n_{c}$** amplifies how much one label moves $\hat{p}_{c}$.
+**Model impact.** Inflated **training** AUC-PR / accuracy, misleading **importance**, and **poor deployment** behaviour. **Low $n_c$** amplifies how much one label moves $\hat{p}_c$.
 
-**Smoke test.** Training jumps while validation stalls after adding target features → audit **where** $k_{c}$ and $n_{c}$ were computed.
+**Smoke test.** Training jumps while validation stalls after adding target features → audit **where** $k_c$ and $n_c$ were computed.
 
 ---
 
@@ -203,20 +203,20 @@ Figures are saved under `figures/` (DPI in `config.yaml`). See `docs/dataset-des
 
 | Experiment | Insight | Figure path (from this folder) |
 |------------|---------|--------------------------------|
-| A | Wide intervals for tiny $n_{c}$; smoothing shrinks sparse levels toward $\bar{p}$ | `../figures/exp_a_perfect_feature.png` |
+| A | Wide intervals for tiny $n_c$; smoothing shrinks sparse levels toward $\bar{p}$ | `../figures/exp_a_perfect_feature.png` |
 | B | Naïve target often larger train–test gap than smoothed | `../figures/exp_b_smoothing_effect.png` |
-| C | High $\lvert r \rvert$ does not justify dropping a column without model checks | `../figures/exp_c_correlation_trap.png` |
+| C | Naïve TE columns can correlate moderately after pooling yet both stay informative; hold-out favours the joint model here | `../figures/exp_c_correlation_trap.png` |
 | D | Leaky label pooling inflates **training** AUC-PR | `../figures/exp_d_encoding_comparison.png` |
 
 *If images do not inline in your viewer, open the paths above or the files under `figures/` at repo root.*
 
 ### Experiment A
 
-**Setup.** Stratified split; in code, a **synthetic sparse level** (all its rows kept in training) has $n_{c}{=}5$, $k_{c}{=}5$. Agresti–Coull intervals on train; second panel varies prior strength $m=\alpha+\beta$.
+**Setup.** Stratified split; in code, a **synthetic sparse level** (all its rows kept in training) has $n_c=5$, $k_c=5$. Agresti–Coull intervals on train; second panel varies prior strength $m=\alpha+\beta$.
 
 **Figure 1.** ![Figure 1](../figures/exp_a_perfect_feature.png)
 
-**Observation.** Interval stays wide at $\hat{p}_{c}{=}1$; larger $m$ shrinks toward $\bar{p}$. **Links:** §§2–4.
+**Observation.** Interval stays wide at $\hat{p}_c=1$; larger $m$ shrinks toward $\bar{p}$. **Links:** §§2–4.
 
 ### Experiment B
 
@@ -228,11 +228,11 @@ Figures are saved under `figures/` (DPI in `config.yaml`). See `docs/dataset-des
 
 ### Experiment C
 
-**Setup.** Naïve target encoding for `country` and `merchant_category` on **training only**; Pearson $r$; MI with $Y$; models with both vs one column dropped.
+**Setup.** Naïve target encoding for `country` and `merchant_category` on **training only**; Pearson $r$ on row-wise encodings; mutual information with $Y$; XGBoost with numerics plus both TEs vs one TE dropped.
 
 **Figure 3.** ![Figure 3](../figures/exp_c_correlation_trap.png)
 
-**Observation.** Tie decisions to **validation** behaviour, not $\lvert r \rvert$ alone. **Links:** §§6–7.
+**Observation.** Panel (a) shows how pooling into many levels dampens linear correlation versus latent $(z_1,z_2)$; panels (b)–(c) still support checking **validation** metrics and target linkage before dropping either column. **Links:** §§6–7.
 
 ### Experiment D
 
@@ -246,9 +246,9 @@ Figures are saved under `figures/` (DPI in `config.yaml`). See `docs/dataset-des
 
 ## 10. A framework for encoding decisions
 
-Work along **cardinality**, **support** ($n_{c}$), and **model family**.
+Work along **cardinality**, **support** ($n_c$), and **model family**.
 
-1. Flag **small** $n_{c}$ in EDA; prefer intervals, smoothing, or pooling before trusting raw $\hat{p}_{c}$.
+1. Flag **small** $n_c$ in EDA; prefer intervals, smoothing, or pooling before trusting raw $\hat{p}_c$.
 2. Pick encoding using §5.
 3. For **target-based** maps, fix **fit scope** (train-only, OOF, CV) **before** tuning.
 4. After correlation screens, follow **§7** before dropping columns.
@@ -261,17 +261,17 @@ Work along **cardinality**, **support** ($n_{c}$), and **model family**.
 | Low | High per level | Logistic | One-hot or smoothed target | Train + CV |
 | High | Heavy tail | GBDT (native cat) | Native ± smoothed target | OOF / train-only |
 | High | Heavy tail | Neural net | Embedding or frequency + numeric | No label leakage |
-| Any | Any | Any | High $\lvert r \rvert$ | §7 before dropping |
+| Any | Any | Any | High $|r|$ | §7 before dropping |
 
 ---
 
 ## 11. Conclusion
 
-**EDA** for categoricals should always combine **counts**, **target rates**, and **uncertainty** (intervals, smoothing). **High correlation** between predictors should trigger **target-aware** and **model-based** checks, not automatic deletion. **Target-encoded** levels are one important instance where $\lvert r \rvert$ can mislead.
+**EDA** for categoricals should always combine **counts**, **target rates**, and **uncertainty** (intervals, smoothing). **High correlation** between predictors should trigger **target-aware** and **model-based** checks, not automatic deletion. **Target-encoded** levels are one important instance where $|r|$ can mislead.
 
 **Summary**
 
-- $\hat{p}_{c}$ has variance $\sim 1/n_{c}$; plug-in variance fails at $0$ and $1$.
+- $\hat{p}_c$ has variance $\sim 1/n_c$; plug-in variance fails at $0$ and $1$.
 - Agresti–Coull (and related) intervals quantify uncertainty for **sparse** levels.
 - Beta–Binomial smoothing is a transparent shrinkage tool with library analogues.
 - Encodings differ by **estimand**; choose deliberately.
@@ -280,7 +280,7 @@ Work along **cardinality**, **support** ($n_{c}$), and **model family**.
 
 Quantitative plots depend on `src/data.py` and `config.yaml`; the **workflow** claims do not.
 
-**Closing line.** **Profile categoricals with $n_{c}$ and intervals, treat correlation as a prompt for target-aware model checks, and ship encodings only after you know the sample each number came from.**
+**Closing line.** **Profile categoricals with $n_c$ and intervals, treat correlation as a prompt for target-aware model checks, and ship encodings only after you know the sample each number came from.**
 
 ---
 
@@ -303,20 +303,20 @@ Quantitative plots depend on `src/data.py` and `config.yaml`; the **workflow** c
 
 ## Appendix B: Production-oriented checklist
 
-- [ ] EDA tables include **$n_{c}$** and **intervals** (or smoothed rates) for sparse levels.
+- [ ] EDA tables include **$n_c$** and **intervals** (or smoothed rates) for sparse levels.
 - [ ] Low-support thresholds documented; **Other** / pooling rules defined.
 - [ ] No **naïve** target stats fitted using validation/test labels.
 - [ ] **OOF/CV** or train-only target encodings; policy in model card.
-- [ ] High $\lvert r \rvert$ pairs go through **§7** before drops.
+- [ ] High $|r|$ pairs go through **§7** before drops.
 - [ ] Validation metrics with/without suspect columns logged.
-- [ ] Encoding refresh / drift plan for changing $n_{c}$ and rates.
+- [ ] Encoding refresh / drift plan for changing $n_c$ and rates.
 
 ---
 
 ## Viewing this article on GitHub
 
 - **Images** use relative paths `../figures/*.png` from this folder so the GitHub file viewer resolves them.
-- **Equations:** GitHub renders [LaTeX in Markdown](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions) using `$...$` and `$$...$$`. Subscripts are written `n_{c}`, `k_{c}`, etc., to reduce clashes with Markdown underscore emphasis.
+- **Equations:** GitHub renders [LaTeX in Markdown](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/writing-mathematical-expressions) using `$...$` and `$$...$$`. Prefer single-character subscripts without extra braces (`$n_c$`, `$\hat{p}_c$`) where possible; avoid heavy `\{...\}` in short inline math when plain text is clearer.
 - For **print-quality** math and layout, build **HTML** in your portfolio pipeline (MathJax).
 
 ---

@@ -15,10 +15,12 @@ dataset:
   merchant_score_z1: 0.72
   merchant_score_z2: 0.28
   fraud_intercept: -8.25
-  fraud_coef_z1: 1.9
-  fraud_coef_z2: 1.75
-  fraud_coef_interaction: 0.95
-  fraud_logit_noise: 0.34
+  # Strong symmetric linear terms + interaction so naive TE columns stay correlated
+  # via the copula yet XGBoost gains from using both (Experiment C).
+  fraud_coef_z1: 1.5
+  fraud_coef_z2: 1.5
+  fraud_coef_interaction: 2.2
+  fraud_logit_noise: 0.25
   country_params:
     # name: [expected_n, fraud_rate]
     Brazil:        [40000, 0.004]
@@ -97,6 +99,8 @@ experiments:
 figures:
   dpi: 300
   style: seaborn-v0_8-whitegrid
-  figsize: [10, 6]
+  figsize: [10, 5.5]
   colormap: viridis
   save_format: png
+  # Serif fonts, minimal grid, muted palette — closer to journal / thesis figures
+  academic_style: true

@@ -10,7 +10,7 @@ Conventions align with `article/features-that-lie.md`. Random variables are capi
 | \(n_c\) | Number of rows in the **fit sample** with \(X = c\) |
 | \(k_c\) | Number of those rows with \(Y = 1\) |
 | \(N\) | Total number of rows in a designated sample (e.g. training set size) |
-| \(\hat{p}_c\) | MLE \(k_c / n_c\) of \(P(Y{=}1 \mid X{=}c)\) under Binomial sampling |
+| \(\hat{p}_c\) | MLE \(k_c / n_c\) of \(P(Y=1 \mid X=c)\) under Binomial sampling |
 | \(\tilde{p}\), \(\tilde{n}\) | Agresti–Coull adjusted proportion \((k{+}2)/(n{+}4)\) and effective \(n{+}4\) |
 | \(\alpha, \beta\) | Beta prior hyperparameters; \(m = \alpha + \beta\) is prior strength |
 | \(\mu_0\) | Prior mean \(\alpha/(\alpha+\beta)\), often set to global training rate \(\bar{p}\) |

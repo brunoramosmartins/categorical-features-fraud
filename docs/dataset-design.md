@@ -14,7 +14,7 @@ This file describes the **implemented** generator in `src/data.py` (Phase 3). Pa
 2. **Country:** sort rows by $z_1$; assign country labels in contiguous blocks whose sizes match `country_params` counts (rare countries = low $z_1$ tail). Uruguay is the smallest-count level from config (5 rows), all labelled **fraud**.
 3. **Merchant:** sort rows by `merchant_score_z1 * z1 + merchant_score_z2 * z2`; assign merchant labels in blocks sized by multinomial draws from `merchant_categories` relative weights.
 4. **Device / channel:** i.i.d. draws from `device_os` and `channel` weight tables.
-5. **Fraud (non-Uruguay):** logistic model in $(z_1, z_2)$ with configurable intercept, linear terms, interaction `fraud_coef_interaction * z1 * z2`, and Gaussian noise (`fraud_logit_noise`). Tuned so overall prevalence is a few percent (not the nominal 0.5% in the YAML `fraud_rate` key — that key documents intent; the copula uses explicit logit parameters).
+5. **Fraud (non-Uruguay):** logistic model in $(z_1, z_2)$ with configurable intercept, linear terms, interaction `fraud_coef_interaction * z1 * z2`, and Gaussian noise (`fraud_logit_noise`). Tuned so overall prevalence is a few percent (not the nominal 0.5% in the YAML `fraud_rate` key — that key documents intent; the copula uses explicit logit parameters). A **strong interaction** relative to noise helps Experiment C show that two naïve target-encoded columns can both remain useful on hold-out even when their **row-wise Pearson correlation** is only moderate (many levels dilute dependence relative to the latent Gaussian pair).
 
 ## Numerical features
 

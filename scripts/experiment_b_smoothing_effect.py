@@ -1,4 +1,4 @@
-"""Experiment B: naïve vs smoothed vs one-hot for country + XGBoost."""
+"""Experiment B: naive vs smoothed vs one-hot country encoding + XGBoost."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from src.config_utils import load_config
 from src.data import load_and_split
 from src.encoding import one_hot_encode, smoothed_target_encode, target_encode_naive
 from src.models import train_and_evaluate
-from src.plotting import apply_plot_style, savefig
+from src.plotting import academic_colors, apply_plot_style, savefig
 
 
 def _num_matrix(df: pd.DataFrame, cfg: dict) -> np.ndarray:
@@ -27,6 +27,7 @@ def _num_matrix(df: pd.DataFrame, cfg: dict) -> np.ndarray:
 
 def main() -> None:
     cfg = load_config()
+    C = academic_colors()
     apply_plot_style(cfg)
     train_df, test_df = load_and_split(cfg)
     y_tr, y_te = train_df["fraud"], test_df["fraud"]
@@ -95,22 +96,46 @@ def main() -> None:
         auc_te.append(m["aucpr_test"])
         print(f"{name}: AUC-PR train={m['aucpr_train']:.4f} test={m['aucpr_test']:.4f} F1 test={m['f1_test']:.4f}")
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    bar_cols = [C["secondary"], C["tertiary"], C["gray"]]
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.8))
     x = np.arange(len(names))
-    axes[0].bar(x, auc_te, color=["steelblue", "seagreen", "orange"])
+    axes[0].bar(
+        x,
+        auc_te,
+        color=bar_cols,
+        edgecolor=C["ink"],
+        linewidth=0.6,
+    )
     axes[0].set_xticks(x)
-    axes[0].set_xticklabels(names, rotation=15, ha="right")
-    axes[0].set_ylabel("AUC-PR (test)")
-    axes[0].set_title("B1: Test ranking by encoding")
+    axes[0].set_xticklabels(names, rotation=12, ha="right")
+    axes[0].set_ylabel("AUC-PR")
+    axes[0].set_title("(a) Test set performance by encoding")
+    axes[0].set_ylim(0, max(auc_te) * 1.15 + 1e-6)
 
-    w = 0.35
-    axes[1].bar(x - w / 2, auc_tr, w, label="Train", color="lightgray")
-    axes[1].bar(x + w / 2, auc_te, w, label="Test", color="steelblue")
+    w = 0.36
+    axes[1].bar(
+        x - w / 2,
+        auc_tr,
+        w,
+        label="Train",
+        color=C["fill"],
+        edgecolor=C["ink"],
+        linewidth=0.6,
+    )
+    axes[1].bar(
+        x + w / 2,
+        auc_te,
+        w,
+        label="Test",
+        color=C["secondary"],
+        edgecolor=C["ink"],
+        linewidth=0.6,
+    )
     axes[1].set_xticks(x)
-    axes[1].set_xticklabels(names, rotation=15, ha="right")
+    axes[1].set_xticklabels(names, rotation=12, ha="right")
     axes[1].set_ylabel("AUC-PR")
-    axes[1].set_title("B2: Train vs test (gap = overfitting signal)")
-    axes[1].legend()
+    axes[1].set_title("(b) Train vs. test gap (encoding variance / overfitting)")
+    axes[1].legend(loc="upper right")
 
     plt.tight_layout()
     savefig("exp_b_smoothing_effect", cfg)

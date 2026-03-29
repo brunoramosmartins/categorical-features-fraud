@@ -1,4 +1,4 @@
-"""Experiment C: high TE correlation but both features help XGBoost."""
+"""Experiment C: target-encoded features can correlate yet both inform Y."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from src.config_utils import load_config
 from src.data import load_and_split
 from src.encoding import target_encode_naive
 from src.models import train_and_evaluate
-from src.plotting import apply_plot_style, savefig
+from src.plotting import academic_colors, apply_plot_style, savefig
 
 
 def _nums(df: pd.DataFrame, cfg: dict) -> np.ndarray:
@@ -27,6 +27,7 @@ def _nums(df: pd.DataFrame, cfg: dict) -> np.ndarray:
 
 def main() -> None:
     cfg = load_config()
+    C = academic_colors()
     apply_plot_style(cfg)
     train_df, test_df = load_and_split(cfg)
     y_tr, y_te = train_df["fraud"], test_df["fraud"]
@@ -53,10 +54,10 @@ def main() -> None:
 
     r = float(np.corrcoef(zc_tr.to_numpy(), zm_tr.to_numpy())[0, 1])
     print(f"Pearson corr(TE_country, TE_merchant) on train: {r:.3f}")
-    if r < 0.7:
+    if r < 0.55:
         print(
-            "Note: roadmap suggests r>0.7; with many pooled categories this may stay lower. "
-            "Tune dataset.copula_rho and merchant_score_z1/z2 in config.yaml, or interpret qualitatively."
+            "Note: with many pooled levels, row-wise naive TE correlation is often moderate "
+            "even when latent (z1,z2) correlation is high; see docs/dataset-design.md."
         )
 
     mi_c = float(
@@ -83,22 +84,45 @@ def main() -> None:
     print(f"Country only: test AUC-PR={mc['aucpr_test']:.4f}")
     print(f"Merchant only: test AUC-PR={mm['aucpr_test']:.4f}")
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-    axes[0].scatter(zc_tr, zm_tr, alpha=0.08, s=5, c="steelblue")
-    axes[0].set_xlabel("TE country")
-    axes[0].set_ylabel("TE merchant")
-    axes[0].set_title(f"C1: r = {r:.2f}")
+    fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.2))
+    axes[0].scatter(
+        zc_tr,
+        zm_tr,
+        alpha=0.12,
+        s=4,
+        c=C["secondary"],
+        edgecolors="none",
+        rasterized=True,
+    )
+    axes[0].set_xlabel(r"Target encoding: country ($z_1$)")
+    axes[0].set_ylabel(r"Target encoding: merchant ($z_2$)")
+    axes[0].set_title(f"(a) Row-wise naive target encodings (Pearson $r={r:.2f}$)")
 
-    models = ["Both", "Country\nonly", "Merchant\nonly"]
+    models = ["Both\nTE", "Country\nTE only", "Merchant\nTE only"]
     scores = [mb["aucpr_test"], mc["aucpr_test"], mm["aucpr_test"]]
-    axes[1].bar(models, scores, color=["darkgreen", "gray", "gray"])
-    axes[1].set_ylabel("Test AUC-PR")
-    axes[1].set_title("C2: Dropping either hurts")
+    cols_bar = [C["secondary"], C["gray"], C["gray"]]
+    axes[1].bar(
+        models,
+        scores,
+        color=cols_bar,
+        edgecolor=C["ink"],
+        linewidth=0.6,
+    )
+    axes[1].set_ylabel("AUC-PR (test)")
+    axes[1].set_title("(b) Model comparison on hold-out")
+    axes[1].set_ylim(0, max(scores) * 1.12 + 1e-6)
 
     mi_vals = [mi_c, mi_m]
-    axes[2].bar(["MI(TE_c;Y)", "MI(TE_m;Y)"], mi_vals, color=["steelblue", "coral"])
-    axes[2].set_ylabel("Mutual information")
-    axes[2].set_title("C3: Both inform Y")
+    axes[2].bar(
+        ["MI(country TE; Y)", "MI(merchant TE; Y)"],
+        mi_vals,
+        color=[C["secondary"], C["muted_purple"]],
+        edgecolor=C["ink"],
+        linewidth=0.6,
+    )
+    axes[2].set_ylabel("Mutual information (nats)")
+    axes[2].set_title("(c) Each encoding carries target information")
+    axes[2].tick_params(axis="x", rotation=12)
 
     plt.tight_layout()
     savefig("exp_c_correlation_trap", cfg)

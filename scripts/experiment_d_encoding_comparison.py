@@ -1,4 +1,4 @@
-"""Experiment D: leaky target encoding vs fold-based (train-only scope)."""
+"""Experiment D: leaky target encoding vs. out-of-fold (correct scope)."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from src.encoding import (
     target_encode_leaky,
 )
 from src.models import train_and_evaluate
-from src.plotting import apply_plot_style, savefig
+from src.plotting import academic_colors, apply_plot_style, savefig
 
 
 def _nums(df: pd.DataFrame, cfg: dict) -> np.ndarray:
@@ -33,6 +33,7 @@ def main() -> None:
     cfg = load_config()
     cfg_d = copy.deepcopy(cfg)
     cfg_d["dataset"]["test_size"] = max(float(cfg["dataset"]["test_size"]), 0.35)
+    C = academic_colors()
     apply_plot_style(cfg)
     train_df, test_df = load_and_split(cfg_d)
     y_tr, y_te = train_df["fraud"], test_df["fraud"]
@@ -47,7 +48,7 @@ def main() -> None:
     )
     Xl_tr = np.c_[Ntr, leak_tr.to_numpy()]
     Xl_te = np.c_[Nte, leak_te.to_numpy()]
-    ml = train_and_evaluate(Xl_tr, y_tr, Xl_te, y_te, cfg)
+    ml = train_and_evaluate(Xl_tr, y_tr, Xl_te, y_te, cfg_d)
 
     oof_tr = fold_target_oof(
         train_df["country"], y_tr, "country", n_folds, random_state=seed
@@ -57,30 +58,52 @@ def main() -> None:
     )
     Xp_tr = np.c_[Ntr, oof_tr.to_numpy()]
     Xp_te = np.c_[Nte, prop_te.to_numpy()]
-    mp = train_and_evaluate(Xp_tr, y_tr, Xp_te, y_te, cfg)
+    mp = train_and_evaluate(Xp_tr, y_tr, Xp_te, y_te, cfg_d)
 
     print("Leaky:  train AUC-PR=%.4f test AUC-PR=%.4f" % (ml["aucpr_train"], ml["aucpr_test"]))
     print("Proper: train AUC-PR=%.4f test AUC-PR=%.4f" % (mp["aucpr_train"], mp["aucpr_test"]))
 
-    fig, ax = plt.subplots(figsize=(8, 5))
-    labels = ["Leaky TE", "Proper (OOF)"]
+    fig, ax = plt.subplots(figsize=(6.8, 4.6))
+    labels = ["Leaky TE\n(train+test labels)", "Proper TE\n(OOF train)"]
     tr = [ml["aucpr_train"], mp["aucpr_train"]]
     te = [ml["aucpr_test"], mp["aucpr_test"]]
     x = np.arange(2)
-    w = 0.35
-    ax.bar(x - w / 2, tr, w, label="Train", color="indianred")
-    ax.bar(x + w / 2, te, w, label="Test", color="steelblue")
+    w = 0.36
+    ax.bar(
+        x - w / 2,
+        tr,
+        w,
+        label="Train",
+        color=C["accent"],
+        edgecolor=C["ink"],
+        linewidth=0.6,
+        alpha=0.85,
+    )
+    ax.bar(
+        x + w / 2,
+        te,
+        w,
+        label="Test",
+        color=C["secondary"],
+        edgecolor=C["ink"],
+        linewidth=0.6,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylabel("AUC-PR")
-    ax.set_title("D: Leakage inflates train AUC-PR")
-    ax.legend()
-    ax.annotate(
-        "train vs test gap",
-        xy=(0, max(tr[0], te[0])),
-        xytext=(0.15, max(tr[0], te[0]) * 0.85),
-        arrowprops=dict(arrowstyle="->", color="black"),
-        fontsize=9,
+    ax.set_title("Train vs. test under label leakage in target encoding")
+    ax.legend(loc="upper right")
+
+    gap_l = tr[0] - te[0]
+    gap_p = tr[1] - te[1]
+    ax.text(
+        0.02,
+        0.98,
+        f"Train$-$test gap: leaky {gap_l:.3f}, proper {gap_p:.3f}",
+        transform=ax.transAxes,
+        fontsize=8,
+        verticalalignment="top",
+        bbox=dict(boxstyle="round,pad=0.35", facecolor="white", edgecolor="0.75", alpha=0.95),
     )
 
     plt.tight_layout()
