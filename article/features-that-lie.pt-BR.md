@@ -2,41 +2,37 @@
 
 ### Fundamentos estatísticos de engenharia de features categóricas para detecção de fraude — da codificação à inferência
 
-> **Nota:** tradução para revisão alinhada à **segunda versão** (revisão técnica estruturada) do artigo em inglês: [`features-that-lie.md`](features-that-lie.md).
+> **Nota:** tradução para revisão alinhada à **terceira versão** (revisão de clareza, narrativa e acessibilidade) do artigo em inglês: [`features-that-lie.md`](features-that-lie.md).
 
-*Segunda versão — revisão técnica (clareza, validade externa, checklists operacionais).*
+*Terceira versão — revisão de clareza, narrativa e acessibilidade para portfólio.*
 
 ---
 
 ## Resumo
 
-Em modelação de fraude e risco, uma categoria com **taxa observada elevada** de eventos em poucas transações é frequentemente tratada como sinal forte — convidando a **viés** e **sobreajuste** quando essa taxa é confundida com um facto populacional preciso. Matrizes de correlação entre features construídas são frequentemente produzidas sem regra sobre o que fazer a seguir. Ambos os hábitos confundem quantidades de **amostra** com verdades de **população**. Este artigo trata taxas ao nível da categoria e codificações comuns como **estimadores estatísticos** com variância, modos de falha sob baixo suporte e **âmbito de ajuste** correcto (incluindo vazamento). Esboçamos EMV para taxas binomiais, intervalos Agresti–Coull para $n$ pequeno e suavização Beta–Binomial; unificamos codificações pelo que estimam; e explicamos por que correlação de Pearson elevada entre colunas codificadas por target **não** justifica retirar uma feature sem evidência orientada ao alvo. Quatro experimentos reproduzíveis num dataset **sintético** ilustram intervalos para níveis raros, suavização e generalização, correlação versus redundância para desempenho de **modelo**, e lacunas treino–teste sob codificação com vazamento — **extremos sintéticos são pedagógicos, não garantidos em produção**. O artigo fecha com **checklists** explícitos para decisões de features e deploy.
+Durante um caso técnico para uma vaga em detecção de fraude, um praticante analisa uma tabela de taxas de fraude por país. O Uruguai apresenta **100% de taxa de fraude** — em apenas cinco transações. O instinto é confiar nesse número como um sinal poderoso. Mais adiante, uma matriz de correlação entre duas features codificadas retorna $|r| > 0{,}7$; alguém sugere remover uma coluna por "colinearidade." Ambas as decisões parecem razoáveis. Ambas estão erradas.
 
-**Palavras-chave:** features categóricas, target encoding, estimação binomial, suavização bayesiana, vazamento, detecção de fraude, sobreajuste.
+A causa raiz é a mesma: **confundir uma estatística amostral com um parâmetro populacional.** Toda taxa por categoria inserida em um modelo é um **estimador** — sua precisão depende de quantas linhas a sustentam ($n_c$) e de quais dados foram usados para calculá-la (treino, teste ou fold). Uma taxa de 100% sobre cinco linhas não é um fato sobre o Uruguai; é uma estimativa de alta variância compatível com taxas verdadeiras tão baixas quanto 50%. Uma correlação alta entre duas colunas codificadas não prova que ambas carregam o mesmo sinal sobre o target.
+
+Este artigo torna essa postura estatística operacional. O leitor aprenderá: (1) por que uma categoria com taxa observada extrema e poucas observações é mais provavelmente ruído do que sinal — e como quantificar a incerteza; (2) o que cada codificação comum (one-hot, frequência, target naïve, target suavizado) de fato estima; (3) por que correlação alta entre features codificadas por target não significa que uma é redundante — e o que verificar em vez disso; (4) como decidir quando remover uma feature e quando mantê-la, com um checklist reproduzível; e (5) um framework de decisão para escolhas de codificação baseado em cardinalidade, suporte e tipo de modelo.
+
+Quatro experimentos sobre um dataset sintético de fraude, com todo o código neste repositório, ilustram cada afirmação. Extremos sintéticos são escolhidos por clareza pedagógica; dados de produção mais frequentemente mostram taxas altas-mas-não-perfeitas sob baixo suporte — as mesmas estatísticas se aplicam.
+
+**Palavras-chave:** features categóricas, target encoding, estimação binomial, suavização bayesiana, vazamento (leakage), detecção de fraude, overfitting.
 
 ---
 
 ## 1. Introdução
 
-**Contexto.** Em muitos casos técnicos e pipelines de produção, features categóricas sustentam tanto a explicação (“este segmento parece arriscado”) como as entradas do modelo. Praticantes calculam rotineiramente taxas de evento por nível e matrizes de correlação entre colunas codificadas.
+Um praticante analisa uma tabela de taxas de fraude por país durante um caso técnico. O Uruguai apresenta 100% de taxa de fraude — cinco transações, todas fraudulentas. O número é impactante, e o instinto é confiar nele: um país onde toda transação observada é fraude deve carregar um sinal forte. Mas a orientação do entrevistador é remover o Uruguai do modelo. Por quê?
 
-**Problema.** Dois lacunas aparecem com frequência em revisão. Primeiro, um nível raro mostra uma taxa observada **muito alta** (por vezes 100%, frequentemente 70–95% em dezenas de linhas). A equipa deve decidir se confia, limita, suaviza ou remove — muitas vezes sem quantificar incerteza. Segundo, duas features codificadas correlacionam alto; alguém sugere retirar uma por “colinearidade”, sem perguntar o que cada coluna contribui para prever o rótulo.
+Mais adiante, na mesma análise, uma matriz de correlação é calculada entre duas features codificadas — país e categoria do estabelecimento, ambas mapeadas para suas taxas de target. O coeficiente de Pearson retorna acima de 0,7. Alguém sugere remover uma coluna para reduzir colinearidade. Mas qual? E com que justificativa? A análise para na observação — um número é produzido, mas nenhum framework de decisão segue.
 
-**Risco.** Tratar $\hat{p}_c=k_c/n_c$ como se fosse $p_c$ com erro desprezível leva a **features excessivamente confiantes** e **sobreajuste** a ruído em níveis raros. Usar só correlação par para colunas derivadas do target pode **remover sinal real** do modelo.
+Esses dois momentos — uma estatística tomada ao pé da letra e uma métrica calculada sem plano de ação — compartilham a mesma causa raiz. Em ambos os casos, uma **quantidade amostral** é tratada como se fosse uma **verdade populacional**. A taxa de 100% sobre cinco linhas não é um fato sobre o Uruguai; é $\hat{p}_c = k_c / n_c = 5/5$, uma estimativa de máxima verossimilhança com variância inversamente proporcional a $n_c$. O coeficiente de correlação mede associação linear entre duas colunas de taxas codificadas; ele nada diz sobre se remover uma coluna prejudicaria a capacidade do modelo de prever $Y$.
 
-**Motivação.** A correcção não é só uma nova chamada de biblioteca — é uma **postura estatística**: todo valor codificado é uma **estimativa** cuja precisão depende de $n_c$ e de **onde** as contagens foram calculadas (treino vs teste vs fold). Este artigo torna essa postura operacional: fórmulas onde ajudam, experimentos onde convencem e **checklists** onde se faz ship.
+**Toda estatística ao nível da categoria usada em engenharia de features é um estimador** — com um tamanho amostral que governa sua precisão, uma variância que cresce quando $n_c$ diminui, e um escopo de ajuste (treino, teste ou fold) que determina se há vazamento (leakage) da resposta [3,4,6]. A suavização é a média a posteriori Beta–Binomial. O vazamento é calcular $P(Y \mid X = c)$ com informação indisponível no momento da predição. Este artigo torna essa postura de estimador operacional: fórmulas onde esclarecem, experimentos onde convencem, e checklists onde entregam.
 
-A tese é estatística, não categórica:
-
-> *Uma categoria com taxa alvo **observada elevada** e **poucas** observações é **mais provavelmente** evidência de **alta variância do estimador** (e possivelmente dados insuficientes) do que uma taxa que deva ser tratada como bem conhecida. Uma correlação elevada entre duas features codificadas é **mais provavelmente** evidência de **variação partilhada** do que redundância segura para prever $Y$. Ambos os erros ignoram que codificações supervisionadas são **estimadores** — com variância, risco de viés sob má especificação, e uma amostra correcta em que devem ser ajustados.*
-
-O eixo central: **toda estatística ao nível da categoria usada em engenharia de features é um estimador.** O tamanho amostral $n_c$ no nível $c$ governa quanta confiança $\hat{p}_c = k_c/n_c$ merece. A suavização é a média a posteriori Beta–Binomial quando esse é o prior escolhido [3,4]. O vazamento é calcular um estimador de $P(Y\mid X=c)$ com informação indisponível em scoring [6].
-
-**Roteiro.** Secção 2: EMV e variância (após intuição). Secção 3: baixo suporte com Agresti–Coull [1,2] e exemplos **não só extremos**. Secção 4: suavização bayesiana, bibliotecas e pseudocódigo. Secção 5: codificações e **quando usar**. Secção 6: correlação versus redundância, ênfase em **modelos**. Secção 7: **checklist** após correlações. Secção 8: vazamento com exemplo mínimo. Secção 9: experimentos e **tabela resumo** (caminhos das figuras relativos à raiz do repo). Secção 10: enquadramento e fluxo. Secção 11: conclusão. **Apêndice B:** checklist orientado a **produção**.
-
-**Quem deve ler.** Modeladores de fraude e risco; engenheiros de ML que auditam codificação e vazamento; leitores que querem uma narrativa coerente de estimadores mais código executável.
-
-**Ressalva sobre dados sintéticos.** O gerador do repositório pode exibir extremos **estilizados** (p.ex. um nível minúsculo com todos positivos) para tornar os gráficos legíveis. **Em produção** é mais comum ver taxas **altas mas não perfeitas** com $n$ baixo; aplicam-se as **mesmas estatísticas**.
+*Todos os experimentos utilizam um dataset sintético de fraude projetado para exibir os fenômenos acima. Dados de produção mais frequentemente mostram taxas altas-mas-não-perfeitas sob baixo suporte — as mesmas estatísticas se aplicam.*
 
 ---
 
@@ -62,9 +58,11 @@ $$
 
 Surge patologia separada para estimativas **plug-in** de variância $\hat{p}_c(1-\hat{p}_c)/n_c$: quando $\hat{p}_c\in\{0,1\}$, a expressão é **zero**, sugerindo — falsamente — que não há incerteza. Métodos de intervalo para proporções binomiais (Wilson, Agresti–Coull, Clopper–Pearson) mantêm-se largos nesse regime [1,2].
 
-**Consequência.** Target encoding que mapeia $c$ para $\hat{p}_c$ não produz uma “verdadeira propensão à fraude” gravada na categoria; produz uma **estimativa** cuja fiabilidade é governada por $n_c$. Alimentá-la sem controlo a modelos flexíveis aumenta o risco de **sobreajuste** em níveis raros.
+**Consequência.** Target encoding que mapeia $c$ para $\hat{p}_c$ não produz uma “verdadeira propensão à fraude” gravada na categoria; produz uma **estimativa** cuja confiabilidade é governada por $n_c$. Alimentá-la sem controle a modelos flexíveis aumenta o risco de **overfitting** em níveis raros.
 
-**Assimptótica e modelação.** Para $n_c$ grande, o EMV é aproximadamente normal com a variância acima. Em fraude, uma **cauda longa** de níveis raros muitas vezes conduz a decisões de política — precisamente onde atalhos normais e plug-in falham em conjunto. O takeaway de engenharia: **nunca confundir $\hat{p}_c$ com $p_c$** quando $n_c$ é pequeno.
+**Assintótica e modelagem.** Para $n_c$ grande, o EMV é aproximadamente normal com a variância acima. Em fraude, uma **cauda longa** de níveis raros muitas vezes conduz a decisões de política — precisamente onde atalhos normais e plug-in falham em conjunto. O takeaway de engenharia: **nunca confundir $\hat{p}_c$ com $p_c$** quando $n_c$ é pequeno.
+
+Mas quão larga é a incerteza para um nível raro concreto? A próxima seção coloca números nisso.
 
 ---
 
@@ -84,7 +82,7 @@ Para ilustração **menos extrema**, tome $(k,n)=(7,10)$: $\hat{p}_c=0{,}7$. O i
 
 Contraste com um país grande como o **Brasil**: se $n_c$ é da ordem de $10^4$ e $\hat{p}_c\approx 0{,}004$, a mesma maquinaria produz uma faixa **estreita** (largura da ordem de $10^{-3}$). O estimador é informativo porque **$n_c$ é informativo**.
 
-**Moral (suavizada).** Taxas **observadas** extremas com $n_c$ minúsculo são **mais plausivelmente** impulsionadas por **ruído amostral** do que por uma taxa populacional **bem conhecida** — quer o valor observado seja 1,0 ou 0,85.
+Taxas **observadas** extremas com $n_c$ minúsculo são **mais plausivelmente** impulsionadas por **ruído amostral** do que por uma taxa populacional **bem conhecida** — quer o valor observado seja 1,0 ou 0,85.
 
 | Âncora | $n_c$ (ilustrativo) | $k_c$ | $\hat{p}_c$ | Intervalo AC 95% (ordem de grandeza) |
 |--------|---------------------|-------|-------------|--------------------------------------|
@@ -94,7 +92,9 @@ Contraste com um país grande como o **Brasil**: se $n_c$ é da ordem de $10^4$ 
 
 A linha do Brasil é **ilustrativa**. A **estrutura** é o ponto: “qual é $p_c$?” tem **precisão** diferente por nível.
 
-**Regra prática (não é lei).** Antes de tratar $\hat{p}_c$ como “verdade” da feature, reportar **$n_c$** junto da taxa; para $n_c$ pequeno, preferir **intervalos** ou valores **suavizados**. Muitas equipas tratam $n_c$ abaixo de algumas dezenas (ou mínimo de domínio) como **baixo suporte** para estimação estável de taxa — calibrar o limiar com **desempenho do modelo em hold-out**, não superstição.
+**Regra prática (não é lei).** Antes de tratar $\hat{p}_c$ como “verdade” da feature, reportar **$n_c$** junto da taxa; para $n_c$ pequeno, preferir **intervalos** ou valores **suavizados**. Muitas equipes tratam $n_c$ abaixo de algumas dezenas (ou mínimo de domínio) como **baixo suporte** para estimação estável de taxa — calibrar o limiar com **desempenho do modelo em hold-out**, não superstição.
+
+Intervalos quantificam o problema; a próxima seção o resolve com uma correção fundamentada.
 
 ---
 
@@ -128,7 +128,7 @@ $$
 
 Quando $n_c$ é pequeno, $w_c$ é pequeno: a estimativa **encolhe** para $\mu_0$ (p.ex. taxa global de fraude). Quando $n_c$ é grande, $w_c\to 1$: a média a posteriori **segue** o EMV [3,4].
 
-**Bibliotecas (ponte para a prática).** Em `category_encoders`, parâmetros de suavização em encoders tipo target são úteis de ler como **força do prior** relativamente a $n_c$ [5]. No **scikit-learn** 1.2+, `TargetEncoder` faz estatísticas de target **cross-fitted** para reduzir vazamento — alinhado conceptualmente à disciplina de **âmbito de ajuste**, mesmo quando a história paramétrica não é Beta–Binomial.
+**Bibliotecas (ponte para a prática).** Em `category_encoders`, parâmetros de suavização em encoders tipo target são úteis de ler como **força do prior** relativamente a $n_c$ [5]. No **scikit-learn** 1.2+, `TargetEncoder` faz estatísticas de target **cross-fitted** para reduzir vazamento — alinhado conceptualmente à disciplina de **escopo de ajuste**, mesmo quando a história paramétrica não é Beta–Binomial.
 
 **Pseudocódigo (mapa de níveis suavizado, treino → aplicar).**
 
@@ -144,7 +144,9 @@ para cada linha i em X_apply:
 
 **Escolher $(\alpha,\beta)$.** Um default comum fixa $\mu_0=\alpha/(\alpha+\beta)$ na taxa global de **treino** $\bar{p}$, e escolhe $m=\alpha+\beta$ por validação cruzada ou domínio: $m$ maior puxa níveis raros com mais força para $\bar{p}$ [3,4].
 
-**Ligação à produção.** Em scoring, o nível raro $c$ usa $(k_c,n_c)$ de **treino** (ou janela móvel de treino). A suavização estabiliza o valor codificado; **não** elimina a necessidade de monitorizar $n_c$ ao longo do tempo.
+**Ligação à produção.** Em scoring, o nível raro $c$ usa $(k_c,n_c)$ de **treino** (ou janela móvel de treino). A suavização estabiliza o valor codificado; **não** elimina a necessidade de monitorar $n_c$ ao longo do tempo.
+
+Com a suavização em mãos, vale a pena recuar e comparar o que diferentes codificações estimam — e quando cada uma é apropriada.
 
 ---
 
@@ -155,26 +157,28 @@ para cada linha i em X_apply:
 | One-hot | $\mathbb{1}[X=c]$ | Pertencer a $c$ | Não | Nenhum | Fraco (esparsa larga) |
 | Frequência | $n_c/N$ | $\hat{P}(X=c)$ | Não | Nenhum | Bom (uma coluna) |
 | Target (naïve) | $k_c/n_c$ | $P(Y{=}1\mid X{=}c)$ EMV | Sim | **Alto** se mal ajustado | Bom |
-| Target suavizado | $(k_c{+}\alpha)/(n_c{+}\alpha{+}\beta)$ | Mesmo estimando, média posterior | Sim | Reduzido vs extremos; ainda mal âmbito | Bom |
+| Target suavizado | $(k_c{+}\alpha)/(n_c{+}\alpha{+}\beta)$ | Mesmo estimando, média posterior | Sim | Reduzido vs extremos; ainda mal escopo | Bom |
 
 **Quando usar (compacto).**
 
 - **One-hot:** cardinalidade baixa, modelos lineares, efeitos interpretáveis por nível; evitar em $C$ muito alto sem regularização.
 - **Frequência:** alta cardinalidade, sinal quando a **raridade** de $X$ importa; sem vazamento de rótulo pelo mapa.
 - **Target naïve:** raramente adequado para treino final sem **OOF / CV**; útil como contraste pedagógico.
-- **Target suavizado:** alta cardinalidade com sinal do rótulo; afinar suavização; definir sempre **âmbito de ajuste** (só treino ou OOF).
+- **Target suavizado:** alta cardinalidade com sinal do rótulo; afinar suavização; definir sempre **escopo de ajuste** (só treino ou OOF).
 
 Boosters com categorias **nativas** procuram divisões $X\in S$; **não** é obrigatória codificação numérica manual. Codificações tipo target podem acrescentar um **escalar** de $P(Y\mid X{=}c)$; validar em hold-out [7].
 
-**Embeddings** estão fora de âmbito; se treinados com rótulos, aplicam-se as mesmas questões de **estimador + âmbito**.
+**Embeddings** estão fora de escopo; se treinados com rótulos, aplicam-se as mesmas questões de **estimador + escopo**.
+
+Saber o que cada codificação estima é necessário — mas não suficiente. Um próximo passo comum é calcular correlações entre colunas codificadas e usá-las para seleção de features. Esse passo esconde uma armadilha.
 
 ---
 
 ## 6. Correlação não é redundância
 
-Na prática, equipas calculam **matriz de correlação** sobre colunas codificadas, veem $|r|$ grande e param — sem perguntar o que acontece ao **modelo** se uma coluna sai.
+Na prática, equipes calculam **matriz de correlação** sobre colunas codificadas, veem $|r|$ grande e param — sem perguntar o que acontece ao **modelo** se uma coluna sai.
 
-**Facto.** A correlação de Pearson entre duas colunas **codificadas por target** mede **associação linear entre linhas** entre as taxas por nível atribuídas. **Não** implica **redundância condicional** para $Y$: $P(Y\mid X_1)$ e $P(Y\mid X_2)$ podem diferir fortemente para pares de níveis mesmo quando as colunas correlacionam.
+**Fato.** A correlação de Pearson entre duas colunas **codificadas por target** mede **associação linear entre linhas** entre as taxas por nível atribuídas. **Não** implica **redundância condicional** para $Y$: $P(Y\mid X_1)$ e $P(Y\mid X_2)$ podem diferir fortemente para pares de níveis mesmo quando as colunas correlacionam.
 
 **Brinquedo (oito linhas).** Níveis $X_1\in\{A,B,C\}$, $X_2\in\{M,N,P\}$, $Y$ binário:
 
@@ -194,6 +198,8 @@ Targets naïves de treino dão $\mathrm{Corr}(z_1,z_2)\approx 0{,}72$, mas $P(Y{
 **Conclusão principal (modelos).** **Não retire uma feature de um modelo preditivo só porque correlaciona com outra** até comparar **modelos com e sem** essa feature (ou usar pontuações orientadas ao alvo, p.ex. importância por permutação). Correlação marginal **não** substitui **contribuição em hold-out para $Y$**.
 
 **Experimentos em pipeline.** No dataset sintético (§9), a correlação TE por linha pode ficar **abaixo** de $0{,}7$ quando muitos níveis agregam linhas. O **princípio** mantém-se: usar **métricas de modelo** e o checklist da §7, não $|r|$ sozinho.
+
+Se correlação sozinha não basta para justificar remover uma coluna, o que um praticante deve fazer depois de calcular correlações? A próxima seção oferece um checklist concreto.
 
 ---
 
@@ -215,13 +221,15 @@ Usar **depois** de calcular correlações par a par entre colunas codificadas (e
 
 **Triagens mais seguras** perguntam se a feature **altera predições de $Y$**, não só se acompanha outra [7].
 
+Resta um último modo de falha: mesmo uma codificação bem escolhida e bem avaliada pode quebrar a generalização se foi calculada sobre os dados errados.
+
 ---
 
 ## 8. Vazamento de target: quando o estimador vê a resposta
 
 **Vazamento (sentido restrito):** o valor de uma feature para uma linha **usa o rótulo dessa linha** (ou rótulos futuros) de forma que **não** pode ocorrer em scoring.
 
-**Exemplo mínimo (três linhas, um nível).** Níveis $\{c,c,c\}$, rótulos $(1,0,0)$. Taxa alvo **naïve** para $c$ calculada **incluindo** a linha dá a cada linha uma codificação que **depende do seu próprio** $Y$. A **função de perda de treino** pode parecer excelente porque o modelo vê um **proxy de $Y$** dentro da feature; o desempenho em **teste** é o juiz honesto — e codificação **correcta** usa contagens **excluindo** a linha (OOF/LOO) ou âmbitos **só treino** [6].
+**Exemplo mínimo (três linhas, um nível).** Níveis $\{c,c,c\}$, rótulos $(1,0,0)$. Taxa alvo **naïve** para $c$ calculada **incluindo** a linha dá a cada linha uma codificação que **depende do seu próprio** $Y$. A **função de perda de treino** pode parecer excelente porque o modelo vê um **proxy de $Y$** dentro da feature; o desempenho em **teste** é o juiz honesto — e codificação **correta** usa contagens **excluindo** a linha (OOF/LOO) ou escopos **só treino** [6].
 
 **Impacto no modelo.** O vazamento **infla métricas de treino** (AUC-PR, precisão) e produz **importância de features enganadora**; **não** cria informação disponível em deploy, logo a história de **generalização** parte-se.
 
@@ -229,7 +237,9 @@ Usar **depois** de calcular correlações par a par entre colunas codificadas (e
 
 **Baixo suporte amplia a gravidade.** $n_c$ minúsculo implica que um rótulo move $\hat{p}_c$ fortemente — auto-influência grande.
 
-**Teste de deteção rápido.** Se o AUC-PR de treino dispara e o de validação mal se move após adicionar target encoding, **primeiro** auditar **onde** $k_c$ e $n_c$ foram calculados.
+**Teste de detecção rápido.** Se o AUC-PR de treino dispara e o de validação mal se move após adicionar target encoding, **primeiro** auditar **onde** $k_c$ e $n_c$ foram calculados.
+
+A teoria está agora completa. Os experimentos a seguir colocam cada afirmação em teste reproduzível.
 
 ---
 
@@ -245,14 +255,14 @@ python scripts/run_all.py
 
 As figuras são gravadas em `figures/` ao DPI em `config.yaml` (default 300). O gerador está em `docs/dataset-design.md`; ressalvas em `docs/experiments-summary.md`.
 
-**Caminhos das figuras.** Em visualizadores Markdown que resolvem links **relativamente à raiz do repositório**, usar `figures/...`. Ao pré-visualizar **a partir** de `article/`, usar `../figures/...`. Abaixo, caminhos **a partir da raiz do repositório**.
+Cada experimento abaixo testa uma afirmação específica das seções anteriores.
 
-| Experimento | Insight principal | Figura (caminho na raiz do repo) |
+| Experimento | Insight principal | Figura |
 |-------------|-------------------|----------------------------------|
 | A | Intervalos largos para $n_c$ minúsculo; suavização puxa níveis raros para $\bar{p}$ | `figures/exp_a_perfect_feature.png` |
 | B | Target naïve frequentemente maior lacuna treino–teste que suavizado; ranking varia com seed | `figures/exp_b_smoothing_effect.png` |
 | C | $|r|$ alto não justifica retirar coluna sem checagens ao modelo / orientadas ao alvo | `figures/exp_c_correlation_trap.png` |
-| D | Agregação com vazamento infla AUC-PR de **treino** vs âmbito OOF/só treino correcto | `figures/exp_d_encoding_comparison.png` |
+| D | Agregação com vazamento infla AUC-PR de **treino** vs escopo OOF/só treino correto | `figures/exp_d_encoding_comparison.png` |
 
 ### Experimento A — A ilusão da “feature perfeita”
 
@@ -284,7 +294,7 @@ As figuras são gravadas em `figures/` ao DPI em `config.yaml` (default 300). O 
 
 **Ligação teórica.** §§6–7.
 
-### Experimento D — Vazamento via âmbito
+### Experimento D — Vazamento via escopo
 
 **Configuração.** **Com vazamento:** TE com rótulos **concatenados** treino+teste. **Correcto:** OOF no treino; teste com estatísticas **só treino**. Ver `scripts/experiment_d_encoding_comparison.py`.
 
@@ -304,7 +314,7 @@ As figuras são gravadas em `figures/` ao DPI em `config.yaml` (default 300). O 
 
 1. Listar níveis com **$n_c$** pequeno; encaminhar para intervalos, suavização ou agregação — não só estimativas pontuais cruas.
 2. Escolher codificação: ver tabela da §5 + “quando usar.”
-3. Se usar mapa **baseado em target**: definir **âmbito de ajuste** (só treino, OOF ou CV) **antes** de afinar.
+3. Se usar mapa **baseado em target**: definir **escopo de ajuste** (só treino, OOF ou CV) **antes** de afinar.
 4. Depois de matrizes de correlação sobre codificações: correr **checklist da §7** antes de retirar colunas.
 5. Validar em **hold-out**; vigiar lacuna **treino vs validação**.
 
@@ -328,27 +338,26 @@ As figuras são gravadas em `figures/` ao DPI em `config.yaml` (default 300). O 
 
 ## 11. Conclusão
 
-Enquadramos duas lacunas comuns — **confiar em taxas extremas com $n_c$ minúsculo** e **parar na correlação** — como casos de confundir **estimativas** com **verdades**.
+A taxa do Uruguai que parecia um sinal era variância. A correlação que parecia redundância era variação compartilhada. Ambas as respostas vêm do mesmo lugar: tratar uma estimativa como verdade — e ambas se resolvem pela mesma postura: **todo valor codificado é um estimador, governado pelo tamanho amostral e pelo escopo de ajuste.**
 
-**O que o artigo estabeleceu**
+Este artigo traçou essa postura dos fundamentos à prática:
 
-- O EMV $\hat{p}_c$ e a **variância** sob baixo suporte; falha plug-in nos limites.
-- **Agresti–Coull** (e afins) para mostrar incerteza para $\hat{p}_c$ **alta**, não só 100%.
-- **Beta–Binomial** como mecanismo de encolhimento transparente; ligações a **bibliotecas** e **pseudocódigo**.
-- Codificações classificadas por **estimando** e **quando usar**.
-- **Correlação $\not\Rightarrow$ redundância** para $Y$; comparações de **modelo** e checklist da §7.
-- **Vazamento** como âmbito errado, com **exemplo mínimo ao nível da linha** e impacto em métricas.
-- Quatro figuras ligadas ao código; dados **sintéticos** como pedagogia com ressalvas de **produção**.
+- O EMV $\hat{p}_c$ tem **variância** inversamente proporcional a $n_c$; estimativas plug-in falham nos limites onde $\hat{p}_c \in \{0, 1\}$.
+- **Intervalos Agresti–Coull** expõem incerteza mesmo para $\hat{p}_c$ moderadamente alta, não apenas para 100%.
+- **Suavização Beta–Binomial** encolhe estimativas de níveis raros em direção à taxa global — uma correção transparente com mapeamento direto para bibliotecas.
+- Codificações diferem pelo **que estimam**; escolher uma é escolher um estimando.
+- **Correlação não implica redundância** para prever $Y$; apenas comparações de modelo e o checklist da §7 respondem a essa pergunta.
+- **Vazamento (leakage)** é codificar com o escopo errado — e $n_c$ baixo amplifica o dano.
 
-**Takeaways condicionais**
+**Quando agir:**
 
-- $n_c$ pequeno: acompanhar taxas com **intervalos** ou **suavização**; vigiar **sobreajuste**.
-- Alta correlação entre target encodings: **pontuar contra $Y$** e comparar **modelos** antes de retirar.
-- Target encoding: definir a **amostra** para $(k_c,n_c)$ com o mesmo cuidado que o split treino/teste.
+- $n_c$ pequeno: acompanhar taxas com **intervalos** ou **suavização**; monitorar overfitting.
+- $|r|$ alto entre target encodings: **pontuar cada coluna contra $Y$** e comparar modelos antes de remover.
+- Qualquer target encoding: definir a **amostra** para $(k_c, n_c)$ com a mesma disciplina do split treino/teste.
 
-**Limitações.** Afirmações quantitativas (AUC-PR, F1, $r$) dependem de `src/data.py` e `config.yaml`. Afirmações lógicas (variância, intervalos, vazamento, correlação vs redundância no modelo) não.
+Resultados quantitativos (AUC-PR, F1, $r$) dependem do gerador sintético em `src/data.py` e `config.yaml`; as afirmações lógicas — variância, intervalos, vazamento, correlação versus redundância no modelo — não.
 
-**Frase de fecho.** **Trate cada coluna codificada como uma estimativa ligada a um tamanho amostral e a um âmbito de ajuste — depois valide o modelo que efectivamente faz deploy.**
+**Trate cada coluna codificada como uma estimativa ligada a um tamanho amostral e a um escopo de ajuste — depois valide o modelo que efetivamente vai para produção.**
 
 ---
 
@@ -373,7 +382,7 @@ Todas as figuras: `python scripts/run_all.py` a partir da raiz do repositório.
 
 Usar juntamente com §7 e §10 antes de fundir alterações de codificação.
 
-- [ ] Para cada categórica de alto impacto, reportar **$n_c$** por nível (ou monitorizar em dashboards).
+- [ ] Para cada categórica de alto impacto, reportar **$n_c$** por nível (ou monitorar em dashboards).
 - [ ] Definir limiares de **baixo suporte** por feature; encaminhar níveis raros para **Other**, suavização ou pooling hierárquico.
 - [ ] Nunca fazer deploy de estatísticas target **naïve** ajustadas com rótulos de **validação/teste**.
 - [ ] Preferir target encoding **OOF/CV** ou mapas **só treino**; registar a política em model cards.
